@@ -9,6 +9,7 @@ dependencies:
   - cartopy
   - dask
   - matplotlib
+  - monet-stats
   - netcdf4
   - numpy
   - pandas>=1.0

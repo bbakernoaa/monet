@@ -25,6 +25,7 @@ dependencies = [
   "cartopy",
   "dask",
   "matplotlib",
+  "monet-stats",
   "netCDF4",
   "numpy",
   "pandas",

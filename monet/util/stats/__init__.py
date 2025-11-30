@@ -2,201 +2,122 @@
 Statistics submodule for MONET utility functions.
 """
 
-# Expose all functions from all stats submodules
-# Dynamically build __all__ from all submodules
+import numpy as np
+import xarray as xr
+try:
+    import dask.array as da
+except ImportError:
+    da = None
 
-# Explicit imports for all public API symbols (for lint compliance)
-from .contingency_metrics import CSI, ETS, FAR, FBI, HSS, POD, TSS, scores
-from .correlation_metrics import (
-    AC,
-    E1,
-    IOA,
-    KGE,
-    R2,
-    RMSE,
-    WDAC,
-    WDIOA,
-    WDRMSE,
-    IOA_m,
-    RMSEs,
-    RMSEu,
-    WDIOA_m,
-    WDRMSE_m,
-    d1,
-    kendalltau,
-    spearmanr,
-    taylor_skill,
-)
-from .error_metrics import (
-    MB,
-    MNB,
-    MNE,
-    MO,
-    MP,
-    NO,
-    NOP,
-    NP,
-    RM,
-    STDO,
-    STDP,
-    WDMB,
-    MdnB,
-    MdnNB,
-    MdnNE,
-    MdnO,
-    MdnP,
-    NMdnGE,
-    RMdn,
-    WDMB_m,
-    WDMdnB,
-)
-from .relative_metrics import (
-    FB,
-    FE,
-    ME,
-    MNPB,
-    MNPE,
-    NMB,
-    NMB_ABS,
-    NME,
-    USUTPB,
-    USUTPE,
-    WDME,
-    MdnE,
-    MdnNPB,
-    MdnNPE,
-    NMdnB,
-    NMdnE,
-    NME_m,
-    NME_m_ABS,
-    WDMdnE,
-    WDME_m,
-    WDNMB_m,
-)
-from .spatial_ensemble_metrics import CRPS, EDS, FSS, SAL, spread_error
-from .utils_stats import circlebias, circlebias_m, matchedcompressed, matchmasks
+from monet_stats import *
+from monet_stats.error_metrics import *
+from monet_stats.relative_metrics import *
+from monet_stats.contingency_metrics import *
+from monet_stats.correlation_metrics import *
+from monet_stats.spatial_ensemble_metrics import *
+from monet_stats.utils_stats import *
 
+# Overrides for compatibility with legacy MONET behavior or fixing inconsistencies in monet-stats
+
+def MO(obs, mod, axis=None):
+    """Mean Observations."""
+    if isinstance(obs, xr.DataArray):
+        return obs.mean(dim=axis)
+    if hasattr(obs, 'mean'):
+        return obs.mean(axis=axis)
+    return np.mean(obs, axis=axis)
+
+def MdnO(obs, mod, axis=None):
+    """Median Observations."""
+    if isinstance(obs, xr.DataArray):
+        return obs.median(dim=axis)
+    if da is not None and isinstance(obs, da.Array):
+        if axis is None:
+            axis = 0 # Default to 0 for dask if None, mimicking old behavior
+        return da.median(obs, axis=axis)
+    if hasattr(obs, 'median'):
+        return obs.median(axis=axis)
+    return np.median(obs, axis=axis)
+
+def STDO(obs, mod, axis=None):
+    """Standard Deviation of Observations."""
+    if isinstance(obs, xr.DataArray):
+        return obs.std(dim=axis)
+    return np.std(obs, axis=axis)
+
+def STDP(obs, mod, axis=None):
+    """Standard Deviation of Predictions."""
+    if isinstance(mod, xr.DataArray):
+        return mod.std(dim=axis)
+    return np.std(mod, axis=axis)
+
+def MP(obs, mod, axis=None):
+    """Mean Predictions."""
+    # Ensure we use mod, not obs-mod
+    if isinstance(mod, xr.DataArray):
+        return mod.mean(dim=axis)
+    if hasattr(mod, 'mean'):
+        return mod.mean(axis=axis)
+    return np.mean(mod, axis=axis)
+
+def MdnP(obs, mod, axis=None):
+    """Median Predictions."""
+    if isinstance(mod, xr.DataArray):
+        return mod.median(dim=axis)
+    if da is not None and isinstance(mod, da.Array):
+        if axis is None:
+            axis = 0
+        return da.median(mod, axis=axis)
+    if hasattr(mod, 'median'):
+        return mod.median(axis=axis)
+    return np.median(mod, axis=axis)
+
+def RM(obs, mod, axis=None):
+    """Ratio of Means (mean(obs/mod))."""
+    # Note: legacy code used mean(obs/mod).
+    if isinstance(obs, xr.DataArray) and isinstance(mod, xr.DataArray):
+         obs, mod = xr.align(obs, mod, join="inner")
+         return (obs / mod).mean(dim=axis)
+    return np.mean(obs / mod, axis=axis)
+
+def RMdn(obs, mod, axis=None):
+    """Ratio of Medians (median(obs/mod))."""
+    if isinstance(obs, xr.DataArray) and isinstance(mod, xr.DataArray):
+         obs, mod = xr.align(obs, mod, join="inner")
+         return (obs / mod).median(dim=axis)
+    # Handle dask
+    ratio = obs / mod
+    if da is not None and isinstance(ratio, da.Array):
+        if axis is None:
+            axis = 0
+        return da.median(ratio, axis=axis)
+    return np.median(ratio, axis=axis)
+
+def MB(obs, mod, axis=None):
+    """Mean Bias (Mod - Obs)."""
+    if isinstance(obs, xr.DataArray) and isinstance(mod, xr.DataArray):
+        obs, mod = xr.align(obs, mod, join="inner")
+        return (mod - obs).mean(dim=axis)
+    return np.mean(mod - obs, axis=axis)
+
+def MdnB(obs, mod, axis=None):
+    """Median Bias (Mod - Obs)."""
+    if isinstance(obs, xr.DataArray) and isinstance(mod, xr.DataArray):
+        obs, mod = xr.align(obs, mod, join="inner")
+        return (mod - obs).median(dim=axis)
+    diff = mod - obs
+    if da is not None and isinstance(diff, da.Array):
+        if axis is None:
+            axis = 0
+        return da.median(diff, axis=axis)
+    return np.median(diff, axis=axis)
+
+# Re-exporting everything including overrides
 __all__ = [
-    # contingency_metrics
-    "HSS",
-    "ETS",
-    "CSI",
-    "scores",
-    "POD",
-    "FAR",
-    "FBI",
-    "TSS",
-    # correlation_metrics
-    "R2",
-    "RMSE",
-    "WDRMSE_m",
-    "WDRMSE",
-    "RMSEs",
-    "RMSEu",
-    "d1",
-    "E1",
-    "IOA_m",
-    "IOA",
-    "WDIOA_m",
-    "WDIOA",
-    "AC",
-    "WDAC",
-    "taylor_skill",
-    "KGE",
-    "spearmanr",
-    "kendalltau",
-    # error_metrics
-    "STDO",
-    "STDP",
-    "MNB",
-    "MNE",
-    "MdnNB",
-    "MdnNE",
-    "NMdnGE",
-    "NO",
-    "NOP",
-    "NP",
-    "MO",
-    "MP",
-    "MdnO",
-    "MdnP",
-    "RM",
-    "RMdn",
-    "MB",
-    "MdnB",
-    "WDMB_m",
-    "WDMB",
-    "WDMdnB",
-    # relative_metrics
-    "NMB",
-    "WDNMB_m",
-    "NMB_ABS",
-    "NMdnB",
-    "FB",
-    "ME",
-    "MdnE",
-    "WDME_m",
-    "WDME",
-    "WDMdnE",
-    "NME_m",
-    "NME_m_ABS",
-    "NME",
-    "NMdnE",
-    "FE",
-    "USUTPB",
-    "USUTPE",
-    "MNPB",
-    "MdnNPB",
-    "MNPE",
-    "MdnNPE",
-    # spatial_ensemble_metrics
-    "FSS",
-    "EDS",
-    "CRPS",
-    "spread_error",
-    "SAL",
-    # utils_stats
-    "matchedcompressed",
-    "matchmasks",
-    "circlebias_m",
-    "circlebias",
+    "HSS", "ETS", "CSI", "scores", "POD", "FAR", "FBI", "TSS",
+    "R2", "RMSE", "WDRMSE_m", "WDRMSE", "RMSEs", "RMSEu", "d1", "E1", "IOA_m", "IOA", "WDIOA_m", "WDIOA", "AC", "WDAC", "taylor_skill", "KGE", "spearmanr", "kendalltau",
+    "STDO", "STDP", "MNB", "MNE", "MdnNB", "MdnNE", "NMdnGE", "NO", "NOP", "NP", "MO", "MP", "MdnO", "MdnP", "RM", "RMdn", "MB", "MdnB", "WDMB_m", "WDMB", "WDMdnB",
+    "NMB", "WDNMB_m", "NMB_ABS", "NMdnB", "FB", "ME", "MdnE", "WDME_m", "WDME", "WDMdnE", "NME_m", "NME_m_ABS", "NME", "NMdnE", "FE", "USUTPB", "USUTPE", "MNPB", "MdnNPB", "MNPE", "MdnNPE",
+    "FSS", "EDS", "CRPS", "spread_error", "SAL",
+    "matchedcompressed", "matchmasks", "circlebias_m", "circlebias",
 ]
-
-
-def stats(df, minval, maxval):
-    """Short summary.
-
-    Parameters
-    ----------
-    df : type
-        Description of parameter `df`.
-    minval : type
-        Description of parameter `minval`.
-    maxval : type
-        Description of parameter `maxval`.
-
-    Returns
-    -------
-    type
-        Description of returned object.
-
-    """
-    from numpy import sqrt
-
-    dd = {}
-    dd["N"] = df.Obs.dropna().count()
-    dd["Obs"] = df.Obs.mean()
-    dd["Mod"] = df.CMAQ.mean()
-    dd["MB"] = MB(df.Obs.values, df.CMAQ.values)  # mean bias
-    dd["R"] = sqrt(R2(df.Obs.values, df.CMAQ.values))  # pearsonr ** 2
-    dd["IOA"] = IOA(df.Obs.values, df.CMAQ.values)  # Index of Agreement
-    dd["RMSE"] = RMSE(df.Obs.values, df.CMAQ.values)
-    dd["NMB"] = NMB(df.Obs.values, df.CMAQ.values)
-    try:
-        a, b, c, d = scores(df.Obs.values, df.CMAQ.values, 70, 1000)
-        dd["POD"] = a / (a + b)
-        dd["FAR"] = c / (a + c)
-    except Exception:
-        dd["POD"] = 1.0
-        dd["FAR"] = 0.0
-    return dd
