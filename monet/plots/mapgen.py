@@ -17,15 +17,19 @@ def draw_map(
     extent=None,
     figsize=(10, 5),
     linewidth=0.25,
+    coastlines_linewidth=None,
+    countries_linewidth=None,
+    states_linewidth=None,
+    counties_linewidth=None,
+    states_edgecolor="k",
+    counties_edgecolor="k",
     return_fig=False,
     **kwargs,
 ):
     """Draw a map with Cartopy.
-
     Creates a map using Cartopy with configurable features like coastlines,
     borders, and natural earth elements. This function simplifies the process
     of creating maps for spatial visualization.
-
     Parameters
     ----------
     crs : cartopy.crs.Projection
@@ -35,13 +39,13 @@ def draw_map(
     natural_earth : bool
         Add the Cartopy Natural Earth ocean, land, lakes, and rivers features.
     coastlines : bool
-        Add coastlines (`linewidth` applied).
+        Add coastlines.
     states : bool
-        Add states/provinces (`linewidth` applied).
+        Add states/provinces.
     counties : bool
-        Add US counties (`linewidth` applied).
+        Add US counties.
     countries : bool
-        Add country borders (`linewidth` applied).
+        Add country borders.
     resolution : {'10m', '50m', '110m'}
         The resolution of the Natural Earth features for coastlines, states, and counties.
         Higher resolution (e.g., '10m') provides more detail but may be slower to render.
@@ -52,30 +56,39 @@ def draw_map(
         This takes precedence over the possible ``kwargs['figsize']``.
     linewidth : float
         Line width for coastlines, states, counties, and countries.
+        This is overridden by the specific linewidth arguments if they are not ``None``.
+    coastlines_linewidth : float, optional
+        Line width for coastlines.
+    countries_linewidth : float, optional
+        Line width for country borders.
+    states_linewidth : float, optional
+        Line width for state/province borders.
+    counties_linewidth : float, optional
+        Line width for US county borders.
+    states_edgecolor : str, optional
+        Edge color for state/province borders.
+    counties_edgecolor : str, optional
+        Edge color for US county borders.
     return_fig : bool
         Return the figure and axes objects.
         By default (``False``), just the axes object is returned.
     **kwargs
         Arguments to pass to :func:`plt.subplots() <matplotlib.pyplot.subplots>`.
-
     Returns
     -------
     matplotlib.axes.Axes or tuple
         By default, returns just the ``ax`` (:class:`cartopy.mpl.geoaxes.GeoAxes` instance).
         If `return_fig` is true, returns a tuple of ``(fig, ax)`` where ``fig`` is the
         matplotlib Figure instance and ``ax`` is the GeoAxes instance.
-
     Notes
     -----
     The '10m' resolution provides the most detailed features but can be slow for
     large or global maps. '50m' is a good compromise for regional maps, while '110m'
     works well for global views.
-
     Examples
     --------
     >>> # Create a simple map with coastlines
     >>> ax = draw_map(coastlines=True, resolution='50m')
-
     >>> # Create a detailed US map with states and counties
     >>> ax = draw_map(
     ...     crs=ccrs.AlbersEqualArea(central_longitude=-95),
@@ -108,7 +121,7 @@ def draw_map(
             name="admin_1_states_provinces_lines",
             scale=resolution,
             facecolor="none",
-            edgecolor="k",
+            edgecolor=states_edgecolor,
         )
 
     if counties:
@@ -117,20 +130,24 @@ def draw_map(
             name="admin_2_counties",
             scale=resolution,
             facecolor="none",
-            edgecolor="k",
+            edgecolor=counties_edgecolor,
         )
 
     if coastlines:
-        ax.coastlines(resolution, linewidth=linewidth)
+        ax.coastlines(resolution, linewidth=(coastlines_linewidth or linewidth))
 
     if countries:
-        ax.add_feature(cfeature.BORDERS, linewidth=linewidth)
+        ax.add_feature(
+            cfeature.BORDERS, linewidth=(countries_linewidth or linewidth)
+        )
 
     if states:
-        ax.add_feature(states_provinces, linewidth=linewidth)
+        ax.add_feature(
+            states_provinces, linewidth=(states_linewidth or linewidth)
+        )
 
     if counties:
-        ax.add_feature(counties, linewidth=linewidth)
+        ax.add_feature(counties, linewidth=(counties_linewidth or linewidth))
 
     if extent is not None:
         ax.set_extent(extent)
