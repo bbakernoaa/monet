@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    # branches: [stable, develop]
+    branches: [stable, develop, feature/interp_improvements]
   pull_request:
-    # branches: [stable, develop]
+    branches: [stable, develop, feature/interp_improvements]
   workflow_dispatch:
   schedule:
     - cron: "0 12 * * 1"
@@ -13,7 +13,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    if: github.repository == 'noaa-oar-arl/monet'
+    # if: github.repository == 'noaa-oar-arl/monet'
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
@@ -60,7 +60,7 @@ jobs:
   docs:
     name: Check docs build
     runs-on: ubuntu-latest
-    if: github.repository == 'noaa-oar-arl/monet'
+    # if: github.repository == 'noaa-oar-arl/monet'
     defaults:
       run:
         shell: bash -l {0}
