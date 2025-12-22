@@ -1,8 +1,12 @@
 """plotting routines"""
 
 import functools
+from typing import Tuple
 
 import cartopy.crs as ccrs
+import xarray as xr
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -166,13 +170,19 @@ def spatial_contourf(
 
 
 @_default_sns_context
-def wind_quiver(u, v, ax=None, thin=15, **kwargs):
+def wind_quiver(
+    u: xr.DataArray,
+    v: xr.DataArray,
+    ax: Axes = None,
+    thin: int = 15,
+    **kwargs,
+) -> Tuple[Figure, Axes]:
     """Create a quiver plot of wind vectors on a map.
     Parameters
     ----------
-    u : xarray.DataArray
+    u : xr.DataArray
         2D array of u-component of wind.
-    v : xarray.DataArray
+    v : xr.DataArray
         2D array of v-component of wind.
     ax : matplotlib.axes.Axes, optional
         Axes to plot on.
@@ -183,11 +193,33 @@ def wind_quiver(u, v, ax=None, thin=15, **kwargs):
         'scale', 'scale_units', and 'width'.
     Returns
     -------
-    matplotlib.quiver.Quiver
-        The quiver instance.
+    fig : matplotlib.figure.Figure
+        The figure object.
+    ax : matplotlib.axes.Axes
+        The axes object with the quiver plot.
+    Examples
+    --------
+    >>> import xarray as xr
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> from monet.plots import wind_quiver
+    >>> # Create sample data
+    >>> lat = np.arange(25, 55, 1)
+    >>> lon = np.arange(-125, -65, 1)
+    >>> u = xr.DataArray(np.random.rand(len(lat), len(lon)),
+    ...                  coords=[('lat', lat), ('lon', lon)],
+    ...                  name='u')
+    >>> v = xr.DataArray(np.random.rand(len(lat), len(lon)),
+    ...                  coords=[('lat', lat), ('lon', lon)],
+    ...                  name='v')
+    >>> # Create plot
+    >>> fig, ax = wind_quiver(u, v, thin=2)
+    >>> plt.show()
     """
     if ax is None:
-        fig, ax = _create_map(ax=ax)
+        fig, ax = _create_map()
+    else:
+        fig = ax.figure
 
     # Use isel for semantic, coordinate-based indexing
     # Assumes 'lat' and 'lon' are dimensions.
@@ -209,13 +241,19 @@ def wind_quiver(u, v, ax=None, thin=15, **kwargs):
 
 
 @_default_sns_context
-def wind_barbs(u, v, ax=None, thin=15, **kwargs):
+def wind_barbs(
+    u: xr.DataArray,
+    v: xr.DataArray,
+    ax: Axes = None,
+    thin: int = 15,
+    **kwargs,
+) -> Tuple[Figure, Axes]:
     """Create a barbs plot of wind on a map.
     Parameters
     ----------
-    u : xarray.DataArray
+    u : xr.DataArray
         2D array of u-component of wind.
-    v : xarray.DataArray
+    v : xr.DataArray
         2D array of v-component of wind.
     ax : matplotlib.axes.Axes, optional
         Axes to plot on.
@@ -226,10 +264,33 @@ def wind_barbs(u, v, ax=None, thin=15, **kwargs):
         'length', 'pivot', 'barb_increments'.
     Returns
     -------
-    None
+    fig : matplotlib.figure.Figure
+        The figure object.
+    ax : matplotlib.axes.Axes
+        The axes object with the barbs plot.
+    Examples
+    --------
+    >>> import xarray as xr
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> from monet.plots import wind_barbs
+    >>> # Create sample data
+    >>> lat = np.arange(25, 55, 1)
+    >>> lon = np.arange(-125, -65, 1)
+    >>> u = xr.DataArray(np.random.rand(len(lat), len(lon)),
+    ...                  coords=[('lat', lat), ('lon', lon)],
+    ...                  name='u')
+    >>> v = xr.DataArray(np.random.rand(len(lat), len(lon)),
+    ...                  coords=[('lat', lat), ('lon', lon)],
+    ...                  name='v')
+    >>> # Create plot
+    >>> fig, ax = wind_barbs(u, v, thin=2)
+    >>> plt.show()
     """
     if ax is None:
-        fig, ax = _create_map(ax=ax)
+        fig, ax = _create_map()
+    else:
+        fig = ax.figure
 
     # Use isel for semantic, coordinate-based indexing
     # Assumes 'lat' and 'lon' are dimensions.

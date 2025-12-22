@@ -44,6 +44,15 @@ def test_quick_with_cartopy_ax(which):
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
+def test_wind_quiver_ax_kwargs():
+    u, v = da, da
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    returned_fig, returned_ax = p.wind_quiver(u, v, ax=ax)
+    assert returned_fig is fig
+    assert returned_ax is ax
+
+
+@pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
 def test_draw_map_counties():
     _ = draw_map(counties=True, extent=[-110.5, -101, 36, 42])
 
@@ -90,6 +99,15 @@ def test_wind_barbs():
     fig, ax = p.wind_barbs(u, v)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
+
+
+@pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
+def test_wind_barbs_ax_kwargs():
+    u, v = da, da
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    returned_fig, returned_ax = p.wind_barbs(u, v, ax=ax)
+    assert returned_fig is fig
+    assert returned_ax is ax
 
 
 if __name__ == "__main__":
