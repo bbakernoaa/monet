@@ -6,6 +6,8 @@ import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import xarray as xr
+from typing import Optional, Tuple
 
 from . import taylordiagram as td
 from .colorbars import colorbar_index
@@ -30,6 +32,24 @@ def _savefig(fig, *, save_name=None, dpi=None, **kwargs):
     if save_name is not None:
         fig.savefig(save_name, dpi=dpi, **kwargs)
         plt.close(fig)
+
+
+def _thin_data(da: xr.DataArray, thin: int) -> xr.DataArray:
+    """Thin the data by the given factor.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The DataArray to thin.
+    thin : int
+        The thinning factor.
+
+    Returns
+    -------
+    xr.DataArray
+        The thinned DataArray.
+    """
+    return da.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
 
 
 def _create_map(fig=None, ax=None, **kwargs):
@@ -166,33 +186,42 @@ def spatial_contourf(
 
 
 @_default_sns_context
-def wind_quiver(u, v, ax=None, thin=15, **kwargs):
+def wind_quiver(
+    u: xr.DataArray,
+    v: xr.DataArray,
+    ax: Optional[plt.Axes] = None,
+    thin: int = 15,
+    **kwargs,
+) -> Tuple[plt.Figure, plt.Axes]:
     """Create a quiver plot of wind vectors on a map.
+
     Parameters
     ----------
-    u : xarray.DataArray
+    u : xr.DataArray
         2D array of u-component of wind.
-    v : xarray.DataArray
+    v : xr.DataArray
         2D array of v-component of wind.
-    ax : matplotlib.axes.Axes, optional
-        Axes to plot on.
+    ax : plt.Axes, optional
+        Axes to plot on. If None, a new figure and axes are created.
+        Default is None.
     thin : int, optional
         The thinning factor for the wind vectors. Default is 15.
     **kwargs
         Additional arguments to pass to quiver. Common options include
         'scale', 'scale_units', and 'width'.
+
     Returns
     -------
-    matplotlib.quiver.Quiver
-        The quiver instance.
+    tuple
+        A tuple containing the figure and axes objects (fig, ax).
     """
     if ax is None:
         fig, ax = _create_map(ax=ax)
+    else:
+        fig = ax.figure
 
-    # Use isel for semantic, coordinate-based indexing
-    # Assumes 'lat' and 'lon' are dimensions.
-    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+    u_thinned = _thin_data(u, thin)
+    v_thinned = _thin_data(v, thin)
 
     lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
 
@@ -209,32 +238,42 @@ def wind_quiver(u, v, ax=None, thin=15, **kwargs):
 
 
 @_default_sns_context
-def wind_barbs(u, v, ax=None, thin=15, **kwargs):
+def wind_barbs(
+    u: xr.DataArray,
+    v: xr.DataArray,
+    ax: Optional[plt.Axes] = None,
+    thin: int = 15,
+    **kwargs,
+) -> Tuple[plt.Figure, plt.Axes]:
     """Create a barbs plot of wind on a map.
+
     Parameters
     ----------
-    u : xarray.DataArray
+    u : xr.DataArray
         2D array of u-component of wind.
-    v : xarray.DataArray
+    v : xr.DataArray
         2D array of v-component of wind.
-    ax : matplotlib.axes.Axes, optional
-        Axes to plot on.
+    ax : plt.Axes, optional
+        Axes to plot on. If None, a new figure and axes are created.
+        Default is None.
     thin : int, optional
         The thinning factor for the wind vectors. Default is 15.
     **kwargs
         Additional arguments to pass to barbs. Common options include
         'length', 'pivot', 'barb_increments'.
+
     Returns
     -------
-    None
+    tuple
+        A tuple containing the figure and axes objects (fig, ax).
     """
     if ax is None:
         fig, ax = _create_map(ax=ax)
+    else:
+        fig = ax.figure
 
-    # Use isel for semantic, coordinate-based indexing
-    # Assumes 'lat' and 'lon' are dimensions.
-    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+    u_thinned = _thin_data(u, thin)
+    v_thinned = _thin_data(v, thin)
 
     lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
 
