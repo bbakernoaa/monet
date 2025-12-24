@@ -2,6 +2,8 @@
 
 import functools
 
+import typing as t
+
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import numpy as np
@@ -185,6 +187,29 @@ def spatial_contourf(
     return fig, ax
 
 
+def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
+    """Thin the data for wind plotting.
+    Parameters
+    ----------
+    u : xr.DataArray
+        u-component of wind.
+    v : xr.DataArray
+        v-component of wind.
+    thin : int, optional
+        The thinning factor for the wind vectors. Default is 15.
+    Returns
+    -------
+    t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]
+        Thinned u, v, and meshgrid longitudes and latitudes.
+    """
+    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+
+    lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
+
+    return u_thinned, v_thinned, lon2d, lat2d
+
+
 @_default_sns_context
 def wind_quiver(
     u: xr.DataArray,
@@ -212,8 +237,8 @@ def wind_quiver(
 
     Returns
     -------
-    tuple
-        A tuple containing the figure and axes objects (fig, ax).
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes objects.
     """
     if ax is None:
         fig, ax = _create_map(ax=ax)
@@ -264,8 +289,8 @@ def wind_barbs(
 
     Returns
     -------
-    tuple
-        A tuple containing the figure and axes objects (fig, ax).
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes objects.
     """
     if ax is None:
         fig, ax = _create_map(ax=ax)
