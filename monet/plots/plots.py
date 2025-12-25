@@ -168,26 +168,32 @@ def spatial_contourf(
     return fig, ax
 
 
-def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
-    """Thin the data for wind plotting.
+def _thin_data(
+    u: xr.DataArray, v: xr.DataArray, thin: int = 15
+) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
+    """Thin the data for wind plotting by selecting every nth point.
+    This function intelligently finds the spatial dimensions.
     Parameters
     ----------
     u : xr.DataArray
-        u-component of wind.
+        u-component of wind, with spatial dimensions.
     v : xr.DataArray
-        v-component of wind.
+        v-component of wind, with spatial dimensions.
     thin : int, optional
         The thinning factor for the wind vectors. Default is 15.
     Returns
     -------
     t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]
-        Thinned u, v, and meshgrid longitudes and latitudes.
+        Thinned u, v, and meshgrid coordinates.
     """
-    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-
-    lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
-
+    if u.ndim < 2:
+        raise ValueError("Input DataArray `u` must have at least 2 dimensions.")
+    y_dim, x_dim = u.dims[-2:]
+    thinner = {y_dim: slice(None, None, thin), x_dim: slice(None, None, thin)}
+    u_thinned = u.isel(**thinner)
+    v_thinned = v.isel(**thinner)
+    x_coords, y_coords = u_thinned.coords[x_dim], u_thinned.coords[y_dim]
+    lon2d, lat2d = np.meshgrid(x_coords, y_coords)
     return u_thinned, v_thinned, lon2d, lat2d
 
 
@@ -229,8 +235,8 @@ def wind_quiver(
     ax.quiver(
         lon2d,
         lat2d,
-        u_thinned.values,
-        v_thinned.values,
+        u_thinned,
+        v_thinned,
         transform=ccrs.PlateCarree(),
         **kwargs,
     )
@@ -275,8 +281,8 @@ def wind_barbs(
     ax.barbs(
         lon2d,
         lat2d,
-        u_thinned.values,
-        v_thinned.values,
+        u_thinned,
+        v_thinned,
         transform=ccrs.PlateCarree(),
         **kwargs,
     )
