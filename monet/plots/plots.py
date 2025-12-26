@@ -168,25 +168,49 @@ def spatial_contourf(
     return fig, ax
 
 
-def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
-    """Thin the data for wind plotting.
+def _thin_data(
+    u: xr.DataArray, v: xr.DataArray, thin: int = 15
+) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
+    """Thin the data for wind plotting by slicing the spatial dimensions.
+
+    This helper function programmatically finds the names of the last two
+    dimensions, assuming they are the spatial dimensions (e.g., y, x or lat, lon),
+    and applies thinning to them.
+
     Parameters
     ----------
     u : xr.DataArray
-        u-component of wind.
+        The u-component (e.g., zonal wind) to be thinned.
     v : xr.DataArray
-        v-component of wind.
+        The v-component (e.g., meridional wind) to be thinned.
+        Must have the same dimensions as `u`.
     thin : int, optional
-        The thinning factor for the wind vectors. Default is 15.
+        The thinning factor. Takes every nth point from the spatial
+        dimensions. Defaults to 15.
+
     Returns
     -------
-    t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]
-        Thinned u, v, and meshgrid longitudes and latitudes.
+    u_thinned : xr.DataArray
+        The thinned u-component.
+    v_thinned : xr.DataArray
+        The thinned v-component.
+    lon2d : np.ndarray
+        A 2D meshgrid of the longitude / x-coordinate for plotting.
+    lat2d : np.ndarray
+        A 2D meshgrid of the latitude / y-coordinate for plotting.
     """
-    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+    # Assume the last two dimensions are the spatial ones
+    y_dim, x_dim = u.dims[-2:]
 
-    lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
+    # Create the thinning slicer
+    slicer = {y_dim: slice(None, None, thin), x_dim: slice(None, None, thin)}
+
+    # Apply the thinning
+    u_thinned = u.isel(**slicer)
+    v_thinned = v.isel(**slicer)
+
+    # Create meshgrid for plotting
+    lon2d, lat2d = np.meshgrid(u_thinned[x_dim], u_thinned[y_dim])
 
     return u_thinned, v_thinned, lon2d, lat2d
 
@@ -229,8 +253,8 @@ def wind_quiver(
     ax.quiver(
         lon2d,
         lat2d,
-        u_thinned.values,
-        v_thinned.values,
+        u_thinned,
+        v_thinned,
         transform=ccrs.PlateCarree(),
         **kwargs,
     )
@@ -275,8 +299,8 @@ def wind_barbs(
     ax.barbs(
         lon2d,
         lat2d,
-        u_thinned.values,
-        v_thinned.values,
+        u_thinned,
+        v_thinned,
         transform=ccrs.PlateCarree(),
         **kwargs,
     )

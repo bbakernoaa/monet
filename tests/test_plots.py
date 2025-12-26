@@ -47,3 +47,26 @@ def test_thin_data(wind_data):
     # Check that the first and last latitude values in the meshgrid match the thinned coordinates
     assert lat2d[0, 0] == u_thinned.lat.values[0]
     assert lat2d[-1, 0] == u_thinned.lat.values[-1]
+
+
+def test_thin_data_non_standard_dims():
+    """Test _thin_data with non-standard dimension names ('y', 'x')."""
+    y = np.arange(100)
+    x = np.arange(200)
+    u = xr.DataArray(np.zeros((len(y), len(x))), dims=["y", "x"], coords={"y": y, "x": x})
+    v = xr.DataArray(np.zeros((len(y), len(x))), dims=["y", "x"], coords={"y": y, "x": x})
+    thin = 10
+
+    u_thinned, v_thinned, x2d, y2d = _thin_data(u, v, thin=thin)
+
+    # Check that the dimensions are thinned correctly
+    expected_y_len = 10  # 100 / 10
+    expected_x_len = 20  # 200 / 10
+    assert u_thinned.sizes["y"] == expected_y_len
+    assert u_thinned.sizes["x"] == expected_x_len
+    assert v_thinned.sizes["y"] == expected_y_len
+    assert v_thinned.sizes["x"] == expected_x_len
+
+    # Check that the meshgrid dimensions are correct
+    assert x2d.shape == (expected_y_len, expected_x_len)
+    assert y2d.shape == (expected_y_len, expected_x_len)
