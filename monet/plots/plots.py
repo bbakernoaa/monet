@@ -170,6 +170,7 @@ def spatial_contourf(
 
 def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
     """Thin the data for wind plotting.
+
     Parameters
     ----------
     u : xr.DataArray
@@ -181,14 +182,24 @@ def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.D
     Returns
     -------
     t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]
-        Thinned u, v, and meshgrid longitudes and latitudes.
+        Thinned u, v, and meshgrid x and y coordinates.
     """
-    u_thinned = u.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
-    v_thinned = v.isel(lat=slice(None, None, thin), lon=slice(None, None, thin))
+    # Programmatically find the spatial dimension names
+    if "lat" in u.coords and "lon" in u.coords:
+        y_dim, x_dim = "lat", "lon"
+    elif "y" in u.coords and "x" in u.coords:
+        y_dim, x_dim = "y", "x"
+    else:
+        # Fallback to the last two dimensions, assuming (..., y, x) order
+        y_dim, x_dim = u.dims[-2:]
 
-    lon2d, lat2d = np.meshgrid(u_thinned.lon, u_thinned.lat)
+    thinner = {y_dim: slice(None, None, thin), x_dim: slice(None, None, thin)}
+    u_thinned = u.isel(**thinner)
+    v_thinned = v.isel(**thinner)
 
-    return u_thinned, v_thinned, lon2d, lat2d
+    x2d, y2d = np.meshgrid(u_thinned[x_dim], u_thinned[y_dim])
+
+    return u_thinned, v_thinned, x2d, y2d
 
 
 @_default_sns_context
@@ -223,12 +234,12 @@ def wind_quiver(
     else:
         fig = ax.figure
 
-    u_thinned, v_thinned, lon2d, lat2d = _thin_data(u, v, thin)
+    u_thinned, v_thinned, x2d, y2d = _thin_data(u, v, thin)
 
     # define map and draw boundaries
     ax.quiver(
-        lon2d,
-        lat2d,
+        x2d,
+        y2d,
         u_thinned.values,
         v_thinned.values,
         transform=ccrs.PlateCarree(),
@@ -269,12 +280,12 @@ def wind_barbs(
     else:
         fig = ax.figure
 
-    u_thinned, v_thinned, lon2d, lat2d = _thin_data(u, v, thin)
+    u_thinned, v_thinned, x2d, y2d = _thin_data(u, v, thin)
 
     # define map and draw boundaries
     ax.barbs(
-        lon2d,
-        lat2d,
+        x2d,
+        y2d,
         u_thinned.values,
         v_thinned.values,
         transform=ccrs.PlateCarree(),
