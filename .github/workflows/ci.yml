@@ -2,12 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [stable, develop, 'refactor/**']
+    branches: [stable, master, develop, 'refactor/**']
   pull_request:
-    branches: [stable, develop, 'feature/**']
-  workflow_dispatch:
-  schedule:
-    - cron: "0 12 * * 1"
+    branches: [stable, master, develop, 'feature/**']
 
 jobs:
   test:
