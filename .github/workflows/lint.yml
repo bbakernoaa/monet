@@ -39,4 +39,3 @@ jobs:
         run: pip install yamllint
       - name: Run yamllint
         run: yamllint .github/workflows/*.yml
-
