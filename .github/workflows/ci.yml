@@ -4,7 +4,7 @@ on:
   push:
     branches: [stable, develop, 'refactor/**']
   pull_request:
-    branches: [stable, develop]
+    branches: [stable, develop, 'feature/**']
   workflow_dispatch:
   schedule:
     - cron: "0 12 * * 1"
