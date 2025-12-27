@@ -39,10 +39,7 @@ jobs:
             pytest-cov
 
       - name: Install Package
-        run: |
-          # Use --no-deps to let micromamba handle the heavy lifting
-          python -m pip install -e . --no-deps
-
+        run: 
       - name: Run Tests
         run: pytest -v --cov=monet
 
