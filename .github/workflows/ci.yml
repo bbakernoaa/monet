@@ -38,8 +38,6 @@ jobs:
             pytest
             pytest-cov
 
-      - name: Install Package
-        run: 
       - name: Run Tests
         run: pytest -v --cov=monet
 
