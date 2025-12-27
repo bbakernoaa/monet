@@ -2,7 +2,6 @@
 
 import numpy as np
 import xarray as xr
-from .resample import resample
 
 def latlon_xarray_to_CoordinateDefinition(longitude=None, latitude=None):
     """Deprecated: Create pyresample SwathDefinition from xarray object.
@@ -153,7 +152,6 @@ def create_area_def_from_latlon(lat, lon, projection="platea", resolution=None, 
     -----
     For non-regular grids, SwathDefinition might be more appropriate than AreaDefinition.
     """
-    import numpy as np
     import pyproj
     from pyresample.geometry import AreaDefinition
 

@@ -14,7 +14,7 @@ References
    https://doi.org/10.1029/2000WR900033.
 """
 
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
 from numpy.typing import ArrayLike

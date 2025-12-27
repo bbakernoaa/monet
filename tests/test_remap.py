@@ -49,7 +49,6 @@ def test_remap_ds_ds():
 
     # On the data DataArray directly
     target.monet.remap_xesmf(source["data"])
-    ds1 = target.copy(deep=True)
 
     # On the Dataset
     if "data_y" in target.variables:

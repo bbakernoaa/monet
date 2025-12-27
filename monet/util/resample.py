@@ -1,6 +1,5 @@
 
 import xarray as xr
-import monet_regrid
 
 
 def resample(source_data, target_grid, method="nearest", **kwargs):

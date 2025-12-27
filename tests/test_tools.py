@@ -1,6 +1,5 @@
 
 import numpy as np
-import pytest
 
 from monet.util.tools import search_listinlist
 

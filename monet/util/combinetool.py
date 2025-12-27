@@ -29,7 +29,6 @@ def combine_da_to_df(da, df, *, merge=True, **kwargs):
         DataFrame with interpolated model values at observation locations,
         either merged with original data (if merge=True) or standalone.
     """
-    radius_of_influence = kwargs.pop("radius_of_influence", 12e4) # unused
     suffix = kwargs.pop("suffix", "_new")
 
     target_da = df.drop_duplicates(subset=["siteid"]).dropna(
