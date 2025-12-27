@@ -19,7 +19,6 @@ jobs:
       matrix:
         # Modernized Python versions (3.6 removed)
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-    
     defaults:
       run:
         shell: bash -l {0} # Necessary for micromamba to activate environments
