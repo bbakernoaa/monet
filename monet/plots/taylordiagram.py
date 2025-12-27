@@ -199,7 +199,9 @@ class TaylorDiagram:
         of differences in standard deviation and correlation.
         """
 
-        rs, ts = np.meshgrid(np.linspace(self.smin, self.smax), np.linspace(0, np.pi / 2))
+        rs, ts = np.meshgrid(
+            np.linspace(self.smin, self.smax), np.linspace(0, np.pi / 2)
+        )
         # Compute centered RMS difference
         rms = np.sqrt(self.refstd**2 + rs**2 - 2 * self.refstd * rs * np.cos(ts))
 
@@ -220,7 +222,9 @@ if __name__ == "__main__":
     m3 = np.sin(x - np.pi / 10)  # Model 3
 
     # Compute stddev and correlation coefficient of models
-    samples = np.array([[m.std(ddof=1), np.corrcoef(data, m)[0, 1]] for m in (m1, m2, m3)])
+    samples = np.array(
+        [[m.std(ddof=1), np.corrcoef(data, m)[0, 1]] for m in (m1, m2, m3)]
+    )
 
     fig = plt.figure(figsize=(10, 4))
 
@@ -238,7 +242,12 @@ if __name__ == "__main__":
     # Add samples to Taylor diagram
     for i, (stddev, corrcoef) in enumerate(samples):
         dia.add_sample(
-            stddev, corrcoef, marker="s", ls="", c=colors_[i], label="Model %d" % (i + 1)
+            stddev,
+            corrcoef,
+            marker="s",
+            ls="",
+            c=colors_[i],
+            label="Model %d" % (i + 1),
         )
 
     # Add RMS contours, and label them

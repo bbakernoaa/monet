@@ -50,6 +50,7 @@ def test_thin_data(wind_data):
     assert lat2d[0, 0] == u_thinned.lat.values[0]
     assert lat2d[-1, 0] == u_thinned.lat.values[-1]
 
+
 @pytest.fixture
 def wind_data_yx() -> t.Tuple[xr.DataArray, xr.DataArray]:
     """Create sample wind component data with y/x dimensions."""

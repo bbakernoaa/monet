@@ -168,7 +168,9 @@ def spatial_contourf(
     return fig, ax
 
 
-def _thin_data(u: xr.DataArray, v: xr.DataArray, thin: int = 15) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
+def _thin_data(
+    u: xr.DataArray, v: xr.DataArray, thin: int = 15
+) -> t.Tuple[xr.DataArray, xr.DataArray, np.ndarray, np.ndarray]:
     """Thin the data for wind plotting.
 
     Parameters
@@ -610,7 +612,9 @@ def create_taylor_diagram(
             dia = td.TaylorDiagram(obsstd, scale=scale, fig=f, rect=111, label=label1)
             plt.grid(linewidth=1, alpha=0.5)
             cc = corrcoef(df[col1].values, df[col2].values)[0, 1]
-            dia.add_sample(df[col2].std(), cc, marker=marker, zorder=9, ls=None, label=label2)
+            dia.add_sample(
+                df[col2].std(), cc, marker=marker, zorder=9, ls=None, label=label2
+            )
             contours = dia.add_contours(colors="0.5")
             plt.clabel(contours, inline=1, fontsize=10)
             plt.grid(alpha=0.5)
@@ -622,7 +626,9 @@ def create_taylor_diagram(
         print("Please pass the previous Taylor Diagram Instance with dia keyword...")
     else:
         cc = corrcoef(df.Obs.values, df.CMAQ.values)[0, 1]
-        dia.add_sample(df.CMAQ.std(), cc, marker=marker, zorder=9, ls=None, label=label1)
+        dia.add_sample(
+            df.CMAQ.std(), cc, marker=marker, zorder=9, ls=None, label=label1
+        )
         plt.legend(fontsize="small", loc="best")
         plt.tight_layout()
     return dia

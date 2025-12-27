@@ -1,4 +1,3 @@
-
 import pytest
 import numpy as np
 import xarray as xr
@@ -58,7 +57,9 @@ def test_remap_ds_ds():
     target.monet.remap_xesmf(source, method="nearest_d2s")
 
 
-@pytest.mark.skipif(not has_monet_regrid, reason="monet-regrid not installed or accessor not available")
+@pytest.mark.skipif(
+    not has_monet_regrid, reason="monet-regrid not installed or accessor not available"
+)
 def test_combine_da_da():
     # This is used in MM aircraft branch
 
@@ -111,4 +112,6 @@ def test_combine_da_da():
     assert new.dims == {"z": 5, "y": n, "x": n}
 
     a = new["data"]
-    assert a.shape == (model.dims["z"], n, n), "model levels but obs grid points (expanded)"
+    assert a.shape == (model.dims["z"], n, n), (
+        "model levels but obs grid points (expanded)"
+    )

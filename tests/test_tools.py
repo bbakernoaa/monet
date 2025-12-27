@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from monet.util.tools import search_listinlist
@@ -11,6 +10,7 @@ def test_search_listinlist_correctness():
     index1, index2 = search_listinlist(array1, array2)
     np.testing.assert_array_equal(index1, np.array([2, 4]))
     np.testing.assert_array_equal(index2, np.array([0, 1]))
+
 
 def test_search_listinlist_benchmark(benchmark):
     """Benchmarks the search_listinlist function."""
