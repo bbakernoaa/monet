@@ -151,13 +151,13 @@ def test_spatial_map_features(spatial_data: xr.DataArray) -> None:
         fig, ax = plots.spatial(spatial_data)
 
     # Check for coastlines by inspecting the collections on the axes
-    assert any(
-        isinstance(artist, FeatureArtist) for artist in ax.collections
-    ), "Coastline artist not found on the axes."
+    assert any(isinstance(artist, FeatureArtist) for artist in ax.collections), (
+        "Coastline artist not found on the axes."
+    )
 
     # Check for gridlines by inspecting the `artists` list on the axes
-    assert any(
-        isinstance(artist, Gridliner) for artist in ax.artists
-    ), "Gridliner artist not found on the axes."
+    assert any(isinstance(artist, Gridliner) for artist in ax.artists), (
+        "Gridliner artist not found on the axes."
+    )
 
     plt.close(fig)
