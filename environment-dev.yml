@@ -13,7 +13,6 @@ dependencies:
   - pip
   - pydecorate
   - seaborn
-  - stratify
   - xarray
   - pytest
   - pytest-cov
@@ -21,3 +20,4 @@ dependencies:
   - pip:
     - monet-regrid @ git+https://github.com/noaa-oar-arl/monet-regrid
     - monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats
+    - stratify
