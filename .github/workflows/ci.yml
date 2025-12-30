@@ -32,8 +32,6 @@ jobs:
           # We force the python version from the matrix into the env
           create-args: >-
             python=${{ matrix.python-version }}
-            pytest
-            pytest-cov
 
       - name: Run Tests
         run: pytest -v --cov=monet
