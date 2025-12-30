@@ -1,11 +1,14 @@
 import pytest
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 from monet.plots import cartopy_utils
+
 
 def test_plot_quick_imshow_runs():
     import matplotlib.pyplot as plt
+
     arr = np.random.rand(10, 10)
     fig, ax = plt.subplots(subplot_kw={"projection": "rectilinear"})
     try:
@@ -14,8 +17,10 @@ def test_plot_quick_imshow_runs():
         pass
     plt.close(fig)
 
+
 def test_plot_quick_map_runs():
     import matplotlib.pyplot as plt
+
     arr = np.random.rand(10, 10)
     fig, ax = plt.subplots(subplot_kw={"projection": "rectilinear"})
     try:

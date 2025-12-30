@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from monet.util import tools
 
+
 def test_search_listinlist_basic():
     a1 = [1, 2, 3]
     a2 = [2, 3, 4]
@@ -10,6 +11,7 @@ def test_search_listinlist_basic():
     # idx2: indices in a2 where matches were found
     assert list(idx1) == [1, 2]
     assert list(idx2) == [0, 1]
+
 
 def test_linregress_basic():
     x = np.array([1, 2, 3, 4])
@@ -20,6 +22,7 @@ def test_linregress_basic():
         assert np.isclose(intercept, 0.0)
     except ImportError:
         pytest.skip("statsmodels not installed")
+
 
 def test_findclosest():
     lst = [1, 3, 7, 10]

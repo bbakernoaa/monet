@@ -610,6 +610,7 @@ class MONETAccessor(BaseAccessor):
                 # Try to get the function from monet_stats
                 try:
                     import monet_stats
+
                     func = getattr(monet_stats, stat)
                     stat_da = func(da1, da2, **stat_kwargs)
                 except (ImportError, AttributeError) as e:
