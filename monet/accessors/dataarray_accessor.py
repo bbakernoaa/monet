@@ -589,7 +589,6 @@ class MONETAccessor(BaseAccessor):
         xarray.DataArray or (fig, ax)
             The statistic DataArray, or (fig, ax) if plot=True.
         """
-        import importlib
 
         import numpy as np
 

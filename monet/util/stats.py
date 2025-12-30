@@ -10,7 +10,7 @@ try:
     import monet_stats
 
     # Re-export all public functions
-    from monet_stats import *
+    from monet_stats import *  # noqa: F403
 
     # Keep the original stats function if it exists
     if hasattr(monet_stats, "stats"):

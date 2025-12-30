@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 import monet_stats as stats
 
