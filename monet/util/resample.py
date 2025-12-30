@@ -99,16 +99,33 @@ def resample_stratify(da, levels, vertical, axis=1):
     """
     try:
         from stratify import interpolate
-    except ImportError:
-        import stratify
+    except (ImportError, ValueError) as e:
+        if "numpy.dtype size changed" in str(e):
+            # Handle numpy compatibility issues in Python 3.10
+            raise ImportError(
+                "stratify package has numpy compatibility issues in this Python version. "
+                "This is a known issue with Python 3.10 and certain numpy versions. "
+                "The package works correctly in Python 3.11 and 3.12."
+            ) from e
+        try:
+            import stratify
 
-        if hasattr(stratify, "interpolate"):
-            interpolate = stratify.interpolate
-        else:
+            if hasattr(stratify, "interpolate"):
+                interpolate = stratify.interpolate
+            else:
+                raise ImportError(
+                    "stratify.interpolate not available; please install stratify package."
+                ) from e
+        except (ImportError, ValueError) as inner_e:
+            if "numpy.dtype size changed" in str(inner_e):
+                raise ImportError(
+                    "stratify package has numpy compatibility issues in this Python version. "
+                    "This is a known issue with Python 3.10 and certain numpy versions. "
+                    "The package works correctly in Python 3.11 and 3.12."
+                ) from inner_e
             raise ImportError(
                 "stratify.interpolate not available; please install stratify package."
-            )
-    import xarray as xr
+            ) from inner_e
 
     # Handle numpy compatibility issues by converting to numpy arrays first
     # This avoids the dtype size mismatch that occurs in Python 3.10
