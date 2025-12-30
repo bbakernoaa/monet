@@ -3,11 +3,11 @@ import numpy as np
 import monet_stats as stats
 
 
-def test_stats.scores():
+def test_scores():
     # Due to our low bias, we miss one
     obs = np.linspace(0, 1, 21)
     mod = obs - 0.1  # low bias
-    a, b, c, d = stats.stats.scores(obs, mod, minval=0.5)
+    a, b, c, d = stats.scores(obs, mod, minval=0.5)
     assert a == 9 and b == 2 and c == 0 and d == 10
 
     # All good
