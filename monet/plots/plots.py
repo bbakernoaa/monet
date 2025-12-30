@@ -232,6 +232,7 @@ def wind_quiver(
     **kwargs,
 ) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a quiver plot of wind vectors on a map.
+
     Parameters
     ----------
     u : xr.DataArray
@@ -245,6 +246,7 @@ def wind_quiver(
     **kwargs
         Additional arguments to pass to quiver. Common options include
         'scale', 'scale_units', and 'width'.
+
     Returns
     -------
     t.Tuple[plt.Figure, plt.Axes]
