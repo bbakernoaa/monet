@@ -7,6 +7,7 @@ import monet  # noqa: F401
 # Check if stratify can be imported without numpy compatibility issues
 try:
     from monet.util.resample import resample_stratify
+
     STRATIFY_AVAILABLE = True
 except (ImportError, ValueError) as e:
     # Skip if stratify has numpy compatibility issues
@@ -16,7 +17,7 @@ except (ImportError, ValueError) as e:
 # Skip all tests if stratify is not available
 skip_if_no_stratify = pytest.mark.skipif(
     not STRATIFY_AVAILABLE,
-    reason="Stratify unavailable due to numpy compatibility issues"
+    reason="Stratify unavailable due to numpy compatibility issues",
 )
 
 

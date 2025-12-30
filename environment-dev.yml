@@ -17,7 +17,7 @@ dependencies:
   - pytest
   - pytest-cov
   - pooch
+  - python-stratify
   - pip:
     - monet-regrid @ git+https://github.com/noaa-oar-arl/monet-regrid
     - monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats
-    - stratify
