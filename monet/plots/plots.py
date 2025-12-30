@@ -278,6 +278,7 @@ def wind_barbs(
     **kwargs,
 ) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a barbs plot of wind on a map.
+
     Parameters
     ----------
     u : xr.DataArray
@@ -291,6 +292,7 @@ def wind_barbs(
     **kwargs
         Additional arguments to pass to barbs. Common options include
         'length', 'pivot', 'barb_increments'.
+
     Returns
     -------
     t.Tuple[plt.Figure, plt.Axes]
