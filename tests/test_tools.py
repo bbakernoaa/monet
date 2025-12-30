@@ -13,10 +13,7 @@ def test_search_listinlist_correctness():
     np.testing.assert_array_equal(index2, np.array([0, 1]))
 
 
-@pytest.mark.skipif(
-    "benchmark" not in dir(),
-    reason="pytest-benchmark not available"
-)
+@pytest.mark.skipif("benchmark" not in dir(), reason="pytest-benchmark not available")
 def test_search_listinlist_benchmark(benchmark):
     """Benchmarks the search_listinlist function."""
     array1 = np.arange(1000)
