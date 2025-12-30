@@ -630,12 +630,12 @@ class MONETAccessor(BaseAccessor):
                         raise ValueError(f"Unknown stat: {stat}") from e
         else:
             raise ValueError(f"Unknown stat: {stat}")
-        
+
         # Ensure stat_da is a DataArray and set name
         if not isinstance(stat_da, xr.DataArray):
             # Convert scalar to DataArray if needed
             stat_da = xr.DataArray(stat_da)
-        
+
         stat_da.name = (
             stat if isinstance(stat, str) else getattr(stat, "__name__", "statistic")
         )
