@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 
 
@@ -109,7 +110,20 @@ def resample_stratify(da, levels, vertical, axis=1):
             )
     import xarray as xr
 
-    result = interpolate(levels, vertical.chunk().data, da.chunk().data, axis=axis)
+    # Handle numpy compatibility issues by converting to numpy arrays first
+    # This avoids the dtype size mismatch that occurs in Python 3.10
+    try:
+        vertical_array = vertical.chunk().data
+        da_array = da.chunk().data
+        result = interpolate(levels, vertical_array, da_array, axis=axis)
+    except ValueError as e:
+        if "numpy.dtype size changed" in str(e):
+            # Fallback: convert to numpy arrays directly without chunking
+            vertical_array = np.asarray(vertical)
+            da_array = np.asarray(da)
+            result = interpolate(levels, vertical_array, da_array, axis=axis)
+        else:
+            raise
     dims = da.dims
     out = xr.DataArray(result, dims=dims, name=da.name)
     out.attrs = da.attrs.copy()
