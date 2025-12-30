@@ -161,3 +161,86 @@ def test_spatial_map_features(spatial_data: xr.DataArray) -> None:
     )
 
     plt.close(fig)
+
+
+@pytest.fixture
+def ax_in() -> t.Generator[t.Tuple[plt.Figure, plt.Axes], None, None]:
+    """Create a figure and a GeoAxes instance for testing."""
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+    yield fig, ax
+    plt.close(fig)
+
+
+def test_spatial_imshow_no_ax(spatial_data: xr.DataArray) -> None:
+    """Test the spatial_imshow function when no ax is provided."""
+    fig, ax = plots.spatial_imshow(spatial_data)
+
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+    plt.close(fig)
+
+
+def test_spatial_imshow_with_ax(
+    spatial_data: xr.DataArray, ax_in: t.Tuple[plt.Figure, plt.Axes]
+) -> None:
+    """Test the spatial_imshow function when an ax is provided."""
+    fig_in, ax_in_instance = ax_in
+    initial_children = len(ax_in_instance.get_children())
+
+    fig_out, ax_out = plots.spatial_imshow(spatial_data, ax=ax_in_instance)
+
+    assert fig_out is fig_in
+    assert ax_out is ax_in_instance
+    # Check that some plotting has occurred on the axes
+    assert len(ax_out.get_children()) > initial_children
+
+
+def test_spatial_imshow_map_features(spatial_data: xr.DataArray) -> None:
+    """Test that the `spatial_imshow` function adds coastlines and gridlines."""
+    fig, ax = plots.spatial_imshow(spatial_data)
+
+    # Check for coastlines
+    assert any(isinstance(artist, FeatureArtist) for artist in ax.collections)
+
+    # Check for gridlines
+    assert any(isinstance(artist, Gridliner) for artist in ax.artists)
+
+    plt.close(fig)
+
+
+def test_spatial_contourf_no_ax(spatial_data: xr.DataArray) -> None:
+    """Test the spatial_contourf function when no ax is provided."""
+    fig, ax = plots.spatial_contourf(spatial_data)
+
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+    plt.close(fig)
+
+
+def test_spatial_contourf_with_ax(
+    spatial_data: xr.DataArray, ax_in: t.Tuple[plt.Figure, plt.Axes]
+) -> None:
+    """Test the spatial_contourf function when an ax is provided."""
+    fig_in, ax_in_instance = ax_in
+    initial_children = len(ax_in_instance.get_children())
+
+    fig_out, ax_out = plots.spatial_contourf(spatial_data, ax=ax_in_instance)
+
+    assert fig_out is fig_in
+    assert ax_out is ax_in_instance
+    # Check that some plotting has occurred on the axes
+    assert len(ax_out.get_children()) > initial_children
+
+
+def test_spatial_contourf_map_features(spatial_data: xr.DataArray) -> None:
+    """Test that the `spatial_contourf` function adds coastlines and gridlines."""
+    fig, ax = plots.spatial_contourf(spatial_data)
+
+    # Check for coastlines
+    assert any(isinstance(artist, FeatureArtist) for artist in ax.collections)
+
+    # Check for gridlines
+    assert any(isinstance(artist, Gridliner) for artist in ax.artists)
+
+    plt.close(fig)
