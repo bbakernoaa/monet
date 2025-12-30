@@ -7,7 +7,7 @@ name = "monet"
 version = "2.2.12"
 description = "The Model and Observation Evaluation Toolkit (MONET)"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 authors = [
   {name = "Barry D. Baker", email = "barry.baker@noaa.gov"},
 ]
@@ -15,7 +15,7 @@ maintainers = [
   {name = "Barry D. Baker", email = "barry.baker@noaa.gov"},
 ]
 license = {text = "MIT"}
-keywords = ["model", "verification", "hysplit", "cmaq", "atmosphere", "camx", "evaluation"]
+keywords = ["model", "verification", "hysplit", "cmaq", "atmosphere", "camx", "evaluation", "ufs", "cesm", "acom", "wrf-chem"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
