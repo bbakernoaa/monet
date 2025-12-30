@@ -565,14 +565,14 @@ class MONETAccessor(BaseAccessor):
     ):
         """
         Compute and optionally plot a statistic between this DataArray and another,
-        leveraging MONET's util.stats metrics.
+        leveraging MONET's monet_stats metrics.
 
         Parameters
         ----------
         other : xarray.DataArray
             The other DataArray to compare with.
         stat : str or callable, default: "diff"
-            Statistic to compute. Can be any metric name from monet.util.stats
+            Statistic to compute. Can be any metric name from monet_stats
             (e.g., "RMSE", "MB", "NMB", "IOA", etc.), "diff", or a callable.
         plot : bool, default: True
             Whether to plot the result using a MONET quick plot method.
@@ -607,10 +607,10 @@ class MONETAccessor(BaseAccessor):
             if stat.lower() == "diff":
                 stat_da = da1 - da2
             else:
-                # Try to get the function from monet.util.stats
+                # Try to get the function from monet_stats
                 try:
-                    stats_mod = importlib.import_module("monet.util.stats")
-                    func = getattr(stats_mod, stat)
+                    import monet_stats
+                    func = getattr(monet_stats, stat)
                     stat_da = func(da1, da2, **stat_kwargs)
                 except (ImportError, AttributeError) as e:
                     # fallback to built-in

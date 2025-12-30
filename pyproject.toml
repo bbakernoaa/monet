@@ -25,18 +25,20 @@ dependencies = [
   "cartopy",
   "dask",
   "matplotlib",
-  "monet-regrid",
+  "monet-regrid @ git+https://github.com/noaa-oar-arl/monet-regrid",
+  "monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats",
   "netCDF4",
   "numpy",
   "pandas",
   "pydecorate",
   "seaborn",
   "xarray",
+  "pooch",
 ]
 
 [tool.setuptools]
 include-package-data = true
-packages = ["monet", "monet.accessors", "monet.plots", "monet.util", "monet.util.stats"]
+packages = ["monet", "monet.accessors", "monet.plots", "monet.util"]
 
 [tool.setuptools.package-data]
 "*" = ["data/*.png"]
