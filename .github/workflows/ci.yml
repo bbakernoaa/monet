@@ -30,8 +30,7 @@ jobs:
           environment-name: monet-env
           cache-environment: true
           # We force the python version from the matrix into the env
-          create-args: >-
-            python=${{ matrix.python-version }}
+          create-args: python=${{ matrix.python-version }}
 
       - name: Run Tests
         run: pytest -v --cov=monet
