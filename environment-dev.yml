@@ -13,6 +13,7 @@ dependencies:
   - pip
   - pydecorate
   - seaborn
+  - stratify
   - xarray
   - pytest
   - pytest-cov

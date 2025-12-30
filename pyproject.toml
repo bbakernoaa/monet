@@ -34,6 +34,7 @@ dependencies = [
   "seaborn",
   "xarray",
   "pooch",
+  "stratify",
 ]
 
 [tool.setuptools]
