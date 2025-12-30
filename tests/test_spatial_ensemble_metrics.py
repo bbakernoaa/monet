@@ -5,7 +5,7 @@ import monet_stats as stats
 def test_FSS():
     obs = np.random.randint(0, 2, (5, 5))
     mod = np.random.randint(0, 2, (5, 5))
-    result = stats.FSS(obs, mod)
+    result = stats.FSS(obs, mod, threshold=0.5, window_size=3)
     assert isinstance(result, float)
 
 
