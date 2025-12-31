@@ -109,9 +109,24 @@ def spatial_imshow(
     """
     fig, ax = _create_map(ax=ax)
     da.plot.imshow(ax=ax, transform=ccrs.PlateCarree(), **kwargs)
+    _add_map_features(ax)
+    return fig, ax
+
+
+def _add_map_features(ax: plt.Axes) -> None:
+    """Add standard map features to a GeoAxes object.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The GeoAxes object to add features to.
+
+    Returns
+    -------
+    None
+    """
     ax.coastlines()
     ax.gridlines()
-    return fig, ax
 
 
 @_default_sns_context
@@ -153,8 +168,7 @@ def spatial(
         stacklevel=2,
     )
     fig, ax = spatial_plot(da, fig=fig, ax=ax, **kwargs)
-    ax.coastlines()
-    ax.gridlines()
+    _add_map_features(ax)
     return fig, ax
 
 
@@ -182,8 +196,7 @@ def spatial_contourf(
     """
     fig, ax = _create_map(ax=ax)
     da.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), **kwargs)
-    ax.coastlines()
-    ax.gridlines()
+    _add_map_features(ax)
     return fig, ax
 
 

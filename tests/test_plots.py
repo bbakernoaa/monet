@@ -161,3 +161,22 @@ def test_spatial_map_features(spatial_data: xr.DataArray) -> None:
     )
 
     plt.close(fig)
+
+
+def test_add_map_features() -> None:
+    """Test the _add_map_features helper function."""
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+
+    # Call the internal function to add map features
+    plots._add_map_features(ax)
+
+    # Check for coastlines
+    has_coastlines = any(isinstance(artist, FeatureArtist) for artist in ax.collections)
+    assert has_coastlines, "Coastline artist not found."
+
+    # Check for gridlines
+    has_gridlines = any(isinstance(artist, Gridliner) for artist in ax.artists)
+    assert has_gridlines, "Gridliner artist not found."
+
+    plt.close(fig)
