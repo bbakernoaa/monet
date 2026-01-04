@@ -186,23 +186,22 @@ def test_spatial_imshow_with_ax(spatial_data: xr.DataArray) -> None:
 
 
 @pytest.fixture
-def bias_scatter_data() -> t.Tuple[pd.DataFrame, pd.Timestamp]:
-    """Create a sample DataFrame for spatial_bias_scatter."""
+def bias_scatter_data_xr() -> xr.Dataset:
+    """Create a sample xr.Dataset for spatial_bias_scatter."""
     data = {
-        "latitude": [34.0, 35.0, 36.0],
-        "longitude": [-118.0, -119.0, -120.0],
-        "CMAQ": [10.0, 12.0, 15.0],
-        "Obs": [8.0, 11.0, 16.0],
-        "datetime": pd.to_datetime(["2023-01-01", "2023-01-01", "2023-01-01"]),
+        "obs": ("station", [8.0, 11.0, 16.0]),
+        "model": ("station", [10.0, 12.0, 15.0]),
     }
-    df = pd.DataFrame(data)
-    date = pd.to_datetime("2023-01-01")
-    return df, date
+    coords = {
+        "latitude": ("station", [34.0, 35.0, 36.0]),
+        "longitude": ("station", [-118.0, -119.0, -120.0]),
+    }
+    return xr.Dataset(data, coords=coords)
 
 
-def test_spatial_bias_scatter_with_ax(bias_scatter_data) -> None:
+def test_spatial_bias_scatter_with_ax(bias_scatter_data_xr: xr.Dataset) -> None:
     """Test the spatial_bias_scatter function when an ax is provided."""
-    df, date = bias_scatter_data
+    ds = bias_scatter_data_xr
 
     # Create a figure and axes with a projection
     fig_in = plt.figure()
@@ -210,11 +209,7 @@ def test_spatial_bias_scatter_with_ax(bias_scatter_data) -> None:
     initial_collections = len(ax_in.collections)
 
     # Call the function with the provided axes
-    result = plots.spatial_bias_scatter(df, date, ax=ax_in)
-
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    fig_out, ax_out = result
+    fig_out, ax_out = plots.spatial_bias_scatter(ds, ax=ax_in)
 
     # Assert that the returned figure and axes are the same as the ones provided
     assert fig_out is fig_in
@@ -225,23 +220,29 @@ def test_spatial_bias_scatter_with_ax(bias_scatter_data) -> None:
     plt.close(fig_in)
 
 
-def test_spatial_bias_scatter_no_ax(bias_scatter_data) -> None:
+def test_spatial_bias_scatter_no_ax(bias_scatter_data_xr: xr.Dataset) -> None:
     """Test the spatial_bias_scatter function when no ax is provided."""
-    df, date = bias_scatter_data
+    ds = bias_scatter_data_xr
 
     # Call the function without providing an axes
-    result = plots.spatial_bias_scatter(df, date)
+    fig, ax = plots.spatial_bias_scatter(ds)
 
     # Assert that a new figure and axes are created and returned
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    fig, ax = result
     assert isinstance(fig, matplotlib.figure.Figure)
     assert isinstance(ax, matplotlib.axes.Axes)
 
     # Check that a scatter plot was actually created
     assert len(ax.collections) > 0
     plt.close(fig)
+
+
+def test_spatial_bias_scatter_vmin_vmax_error(bias_scatter_data_xr: xr.Dataset) -> None:
+    """Test ValueError is raised when only vmin or vmax is provided."""
+    ds = bias_scatter_data_xr
+    with pytest.raises(ValueError, match="Both vmin and vmax must be specified, or neither."):
+        plots.spatial_bias_scatter(ds, vmin=0)
+    with pytest.raises(ValueError, match="Both vmin and vmax must be specified, or neither."):
+        plots.spatial_bias_scatter(ds, vmax=10)
 
 
 def test_spatial_contourf_no_ax(spatial_data: xr.DataArray) -> None:
