@@ -7,6 +7,7 @@ import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -185,10 +186,8 @@ def test_spatial_imshow_with_ax(spatial_data: xr.DataArray) -> None:
 
 
 @pytest.fixture
-def bias_scatter_data() -> t.Tuple["pd.DataFrame", "pd.Timestamp"]:
+def bias_scatter_data() -> t.Tuple[pd.DataFrame, pd.Timestamp]:
     """Create a sample DataFrame for spatial_bias_scatter."""
-    import pandas as pd
-
     data = {
         "latitude": [34.0, 35.0, 36.0],
         "longitude": [-118.0, -119.0, -120.0],
