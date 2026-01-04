@@ -7,7 +7,6 @@ import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import pytest
 import xarray as xr
 
@@ -239,9 +238,13 @@ def test_spatial_bias_scatter_no_ax(bias_scatter_data_xr: xr.Dataset) -> None:
 def test_spatial_bias_scatter_vmin_vmax_error(bias_scatter_data_xr: xr.Dataset) -> None:
     """Test ValueError is raised when only vmin or vmax is provided."""
     ds = bias_scatter_data_xr
-    with pytest.raises(ValueError, match="Both vmin and vmax must be specified, or neither."):
+    with pytest.raises(
+        ValueError, match="Both vmin and vmax must be specified, or neither."
+    ):
         plots.spatial_bias_scatter(ds, vmin=0)
-    with pytest.raises(ValueError, match="Both vmin and vmax must be specified, or neither."):
+    with pytest.raises(
+        ValueError, match="Both vmin and vmax must be specified, or neither."
+    ):
         plots.spatial_bias_scatter(ds, vmax=10)
 
 
