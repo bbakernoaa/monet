@@ -346,41 +346,34 @@ def normval(vmin, vmax, cmap):
 
 @_default_sns_context
 def spatial_bias_scatter(
-    df,
-    date,
-    vmin=None,
-    vmax=None,
-    savename="",
-    ncolors=15,
-    fact=1.5,
-    cmap="RdBu_r",
-    fig=None,
-    ax=None,
+    ds: xr.Dataset,
+    *,
+    vmin: t.Optional[float] = None,
+    vmax: t.Optional[float] = None,
+    cmap: str = "RdBu_r",
+    fig: t.Optional[plt.Figure] = None,
+    ax: t.Optional[plt.Axes] = None,
+    **kwargs,
 ) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a scatter plot showing bias on a map.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing 'latitude', 'longitude', 'CMAQ', and 'Obs' columns.
-    date : str or datetime.datetime
-        Date to filter the DataFrame. Only entries matching this date will be plotted.
+    ds : xr.Dataset
+        Dataset containing 'obs' and 'model' variables,
+        with 'latitude' and 'longitude' coordinates.
     vmin : float, optional
-        Minimum value for colorscale. If None, automatically determined.
+        Minimum value for the colorscale. If None, it is inferred from the data.
     vmax : float, optional
-        Maximum value for colorscale. If None, automatically determined.
-    savename : str, default ""
-        If provided, save the figure to this path with date appended.
-    ncolors : int, default 15
-        Number of discrete colors for the colorbar.
-    fact : float, default 1.5
-        Scaling factor for point sizes.
-    cmap : str or matplotlib.colors.Colormap, default "RdBu_r"
+        Maximum value for the colorscale. If None, it is inferred from the data.
+    cmap : str, default "RdBu_r"
         Colormap to use for bias values.
     fig : matplotlib.figure.Figure, optional
         Figure to plot on.
     ax : matplotlib.axes.Axes, optional
         Axes to plot on.
+    **kwargs
+        Additional keyword arguments to pass to `xarray.plot.scatter`.
 
     Returns
     -------
@@ -389,42 +382,43 @@ def spatial_bias_scatter(
 
     Notes
     -----
-    The scatter points are colored by the difference (CMAQ - Obs) and sized
+    The scatter points are colored by the bias (model - obs) and sized
     by the absolute magnitude of this difference, making larger biases more visible.
+    The plot is rendered on a map projection.
     """
-    from numpy import around
-    from scipy.stats import scoreatpercentile as score
-
     fig, ax = _create_map(fig=fig, ax=ax)
 
-    ax.set_facecolor("white")
-    diff = df.CMAQ - df.Obs
-    top = around(score(diff.abs(), per=95))
-    new = df[df.datetime == date]
-    x = new.longitude.values
-    y = new.latitude.values
-    c, cmap = colorbar_index(ncolors, cmap, minval=top * -1, maxval=top, ax=ax)
+    bias = ds["model"] - ds["obs"]
+    bias.attrs["long_name"] = "Bias (Model - Obs)"
+    if "units" in ds["model"].attrs:
+        bias.attrs["units"] = ds["model"].attrs["units"]
 
-    c.ax.tick_params(labelsize=13)
-    #    cmap = cmap_discretize(cmap, ncolors)
-    colors = new.CMAQ - new.Obs
-    ss = (new.CMAQ - new.Obs).abs() / top * 100.0
-    ss[ss > 300] = 300.0
-    ax.scatter(
-        x,
-        y,
-        c=colors,
-        s=ss,
-        vmin=-1.0 * top,
-        vmax=top,
+    # Use 95th percentile for robust color limits
+    if vmin is None and vmax is None:
+        vmax = np.percentile(np.abs(bias.values), 95)
+        vmin = -vmax
+
+    size_scale = 200  # Adjust this factor to control point sizes
+    s = (np.abs(bias) / vmax) * size_scale
+
+    bias.plot.scatter(
+        ax=ax,
+        x="longitude",
+        y="latitude",
+        s=s,
+        vmin=vmin,
+        vmax=vmax,
         cmap=cmap,
         edgecolors="k",
         linewidths=0.25,
         alpha=0.7,
         transform=ccrs.PlateCarree(),
+        **kwargs,
     )
 
-    _savefig(fig, save_name=savename)
+    ax.coastlines()
+    ax.gridlines(draw_labels=True)
+
     return fig, ax
 
 
