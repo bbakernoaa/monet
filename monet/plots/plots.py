@@ -346,78 +346,78 @@ def normval(vmin, vmax, cmap):
 
 @_default_sns_context
 def spatial_bias_scatter(
-    df,
-    date,
-    vmin=None,
-    vmax=None,
-    savename="",
-    ncolors=15,
-    fact=1.5,
-    cmap="RdBu_r",
-    fig=None,
-    ax=None,
+    ds: xr.Dataset,
+    vmin: t.Optional[float] = None,
+    vmax: t.Optional[float] = None,
+    savename: str = "",
+    ncolors: int = 15,
+    cmap: str = "RdBu_r",
+    fig: t.Optional[plt.Figure] = None,
+    ax: t.Optional[plt.Axes] = None,
 ) -> t.Tuple[plt.Figure, plt.Axes]:
-    """Create a scatter plot showing bias on a map.
-
+    """Create a scatter plot showing bias on a map from an xarray.Dataset.
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing 'latitude', 'longitude', 'CMAQ', and 'Obs' columns.
-    date : str or datetime.datetime
-        Date to filter the DataFrame. Only entries matching this date will be plotted.
+    ds : xarray.Dataset
+        Dataset containing 'model' and 'obs' data variables, and 'latitude'
+        and 'longitude' coordinates.
     vmin : float, optional
-        Minimum value for colorscale. If None, automatically determined.
+        Minimum value for colorscale. If None, automatically determined from the data.
     vmax : float, optional
-        Maximum value for colorscale. If None, automatically determined.
+        Maximum value for colorscale. If None, automatically determined from the data.
     savename : str, default ""
-        If provided, save the figure to this path with date appended.
+        If provided, save the figure to this path.
     ncolors : int, default 15
         Number of discrete colors for the colorbar.
-    fact : float, default 1.5
-        Scaling factor for point sizes.
     cmap : str or matplotlib.colors.Colormap, default "RdBu_r"
         Colormap to use for bias values.
     fig : matplotlib.figure.Figure, optional
         Figure to plot on.
     ax : matplotlib.axes.Axes, optional
         Axes to plot on.
-
     Returns
     -------
     t.Tuple[plt.Figure, plt.Axes]
         The figure and axes containing the plot.
-
     Notes
     -----
-    The scatter points are colored by the difference (CMAQ - Obs) and sized
+    The scatter points are colored by the difference (model - obs) and sized
     by the absolute magnitude of this difference, making larger biases more visible.
+    The function assumes that the input Dataset is the result of a pointwise
+    observation-model pairing and does not perform any averaging.
     """
-    from numpy import around
-    from scipy.stats import scoreatpercentile as score
-
     fig, ax = _create_map(fig=fig, ax=ax)
-
     ax.set_facecolor("white")
-    diff = df.CMAQ - df.Obs
-    top = around(score(diff.abs(), per=95))
-    new = df[df.datetime == date]
-    x = new.longitude.values
-    y = new.latitude.values
-    c, cmap = colorbar_index(ncolors, cmap, minval=top * -1, maxval=top, ax=ax)
 
+    diff = ds["model"] - ds["obs"]
+
+    # Use 95th percentile of absolute difference for scaling
+    if vmax is None:
+        top = np.percentile(np.abs(diff.values), 95)
+    else:
+        top = vmax
+
+    if vmin is None:
+        vmin = -top
+
+    x = ds.longitude.values
+    y = ds.latitude.values
+
+    c, cmap_out = colorbar_index(ncolors, cmap, minval=vmin, maxval=top, ax=ax)
     c.ax.tick_params(labelsize=13)
-    #    cmap = cmap_discretize(cmap, ncolors)
-    colors = new.CMAQ - new.Obs
-    ss = (new.CMAQ - new.Obs).abs() / top * 100.0
+
+    colors = diff.values
+    ss = np.abs(colors) / top * 100.0
     ss[ss > 300] = 300.0
+
     ax.scatter(
         x,
         y,
         c=colors,
         s=ss,
-        vmin=-1.0 * top,
+        vmin=vmin,
         vmax=top,
-        cmap=cmap,
+        cmap=cmap_out,
         edgecolors="k",
         linewidths=0.25,
         alpha=0.7,
