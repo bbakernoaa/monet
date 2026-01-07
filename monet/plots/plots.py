@@ -346,41 +346,35 @@ def normval(vmin, vmax, cmap):
 
 @_default_sns_context
 def spatial_bias_scatter(
-    df,
-    date,
-    vmin=None,
-    vmax=None,
-    savename="",
-    ncolors=15,
-    fact=1.5,
-    cmap="RdBu_r",
-    fig=None,
-    ax=None,
+    ds: xr.Dataset,
+    vmin: t.Optional[float] = None,
+    vmax: t.Optional[float] = None,
+    ncolors: int = 15,
+    cmap: str = "RdBu_r",
+    fig: t.Optional[plt.Figure] = None,
+    ax: t.Optional[plt.Axes] = None,
 ) -> t.Tuple[plt.Figure, plt.Axes]:
-    """Create a scatter plot showing bias on a map.
+    """Create a scatter plot showing bias on a map from an xarray.Dataset.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing 'latitude', 'longitude', 'CMAQ', and 'Obs' columns.
-    date : str or datetime.datetime
-        Date to filter the DataFrame. Only entries matching this date will be plotted.
+    ds : xr.Dataset
+        An xarray Dataset containing 'obs' and 'model' as data variables,
+        and 'latitude' and 'longitude' as coordinates.
     vmin : float, optional
-        Minimum value for colorscale. If None, automatically determined.
+        Minimum value for the colorscale. If None, it is automatically
+        determined from the 95th percentile of the absolute bias.
     vmax : float, optional
-        Maximum value for colorscale. If None, automatically determined.
-    savename : str, default ""
-        If provided, save the figure to this path with date appended.
+        Maximum value for the colorscale. If None, it is automatically
+        determined from the 95th percentile of the absolute bias.
     ncolors : int, default 15
         Number of discrete colors for the colorbar.
-    fact : float, default 1.5
-        Scaling factor for point sizes.
     cmap : str or matplotlib.colors.Colormap, default "RdBu_r"
-        Colormap to use for bias values.
+        Colormap to use for the bias values.
     fig : matplotlib.figure.Figure, optional
-        Figure to plot on.
+        A figure instance to plot on.
     ax : matplotlib.axes.Axes, optional
-        Axes to plot on.
+        An axes instance to plot on.
 
     Returns
     -------
@@ -389,42 +383,43 @@ def spatial_bias_scatter(
 
     Notes
     -----
-    The scatter points are colored by the difference (CMAQ - Obs) and sized
-    by the absolute magnitude of this difference, making larger biases more visible.
+    The scatter points are colored by the bias (model - obs) and sized
+    by the absolute magnitude of this difference, making larger biases
+    more visible.
     """
     from numpy import around
-    from scipy.stats import scoreatpercentile as score
 
     fig, ax = _create_map(fig=fig, ax=ax)
-
     ax.set_facecolor("white")
-    diff = df.CMAQ - df.Obs
-    top = around(score(diff.abs(), per=95))
-    new = df[df.datetime == date]
-    x = new.longitude.values
-    y = new.latitude.values
-    c, cmap = colorbar_index(ncolors, cmap, minval=top * -1, maxval=top, ax=ax)
 
+    diff = ds["model"] - ds["obs"]
+
+    if vmin is None and vmax is None:
+        # Score at percentile needs a flattened array
+        top = around(np.percentile(np.abs(diff.values), 95))
+        vmin, vmax = -top, top
+
+    c, cmap_obj = colorbar_index(ncolors, cmap, minval=vmin, maxval=vmax, ax=ax)
     c.ax.tick_params(labelsize=13)
-    #    cmap = cmap_discretize(cmap, ncolors)
-    colors = new.CMAQ - new.Obs
-    ss = (new.CMAQ - new.Obs).abs() / top * 100.0
-    ss[ss > 300] = 300.0
+
+    # Normalize size of points
+    sizes = np.abs(diff.values) / vmax * 100.0
+    sizes[sizes > 300] = 300.0
+
     ax.scatter(
-        x,
-        y,
-        c=colors,
-        s=ss,
-        vmin=-1.0 * top,
-        vmax=top,
-        cmap=cmap,
+        ds.longitude.values,
+        ds.latitude.values,
+        c=diff.values,
+        s=sizes,
+        vmin=vmin,
+        vmax=vmax,
+        cmap=cmap_obj,
         edgecolors="k",
         linewidths=0.25,
         alpha=0.7,
         transform=ccrs.PlateCarree(),
     )
 
-    _savefig(fig, save_name=savename)
     return fig, ax
 
 
