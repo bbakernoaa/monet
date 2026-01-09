@@ -219,7 +219,9 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
 
     assert fig_out_2 is fig_in
     assert ax_out_2 is ax_in
-    assert len(ax_out_2.collections) > initial_collections, "Scatter plot should be added to existing axes"
+    assert len(ax_out_2.collections) > initial_collections, (
+        "Scatter plot should be added to existing axes"
+    )
     plt.close(fig_in)
 
 
