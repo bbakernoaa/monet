@@ -22,6 +22,7 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
+    "monet-plots @ git+https://github.com/noaa-oar-arl/monet-plots.git@develop",
   "cartopy",
   "dask",
   "matplotlib",

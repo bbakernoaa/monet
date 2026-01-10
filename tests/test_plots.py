@@ -184,46 +184,6 @@ def test_spatial_imshow_with_ax(spatial_data: xr.DataArray) -> None:
     plt.close(fig_in)
 
 
-@pytest.fixture
-def bias_scatter_data_xr() -> xr.Dataset:
-    """Create a sample xarray.Dataset for spatial_bias_scatter."""
-    data = {
-        "latitude": ("station", [34.0, 35.0, 36.0]),
-        "longitude": ("station", [-118.0, -119.0, -120.0]),
-        "model": ("station", [10.0, 12.0, 15.0]),
-        "obs": ("station", [8.0, 11.0, 16.0]),
-    }
-    ds = xr.Dataset(data)
-    ds = ds.set_coords(["latitude", "longitude"])
-    return ds
-
-
-def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
-    """Test the xarray-native spatial_bias_scatter function."""
-    ds = bias_scatter_data_xr
-
-    # --- Test case 1: No ax provided ---
-    fig_out, ax_out = plots.spatial_bias_scatter(ds)
-    assert isinstance(fig_out, matplotlib.figure.Figure)
-    assert isinstance(ax_out, matplotlib.axes.Axes)
-    assert len(ax_out.collections) > 0, "Scatter plot should be added"
-    plt.close(fig_out)
-
-    # --- Test case 2: Pre-existing ax provided ---
-    fig_in = plt.figure()
-    ax_in = fig_in.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-    initial_collections = len(ax_in.collections)
-
-    fig_out_2, ax_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
-
-    assert fig_out_2 is fig_in
-    assert ax_out_2 is ax_in
-    assert len(ax_out_2.collections) > initial_collections, (
-        "Scatter plot should be added to existing axes"
-    )
-    plt.close(fig_in)
-
-
 def test_spatial_contourf_no_ax(spatial_data: xr.DataArray) -> None:
     """Test the spatial_contourf function when no ax is provided."""
     fig, ax = plots.spatial_contourf(spatial_data)

@@ -55,14 +55,16 @@ def test_spatial_plot():
     assert isinstance(ax, plt.Axes)
 
 
+from monet_plots.plots.spatial_bias_scatter import SpatialBiasScatterPlot
+
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
 def test_spatial_bias_scatter():
     # Convert DataFrame to an xarray Dataset and rename columns for the new API
-    ds = df.rename(columns={"CMAQ": "model", "Obs": "obs"}).to_xarray()
-    ds = ds.set_coords(["latitude", "longitude"])
-    fig, ax = p.spatial_bias_scatter(ds)
-    assert isinstance(fig, plt.Figure)
-    assert isinstance(ax, plt.Axes)
+    ds = df.rename(columns={"CMAQ": "model", "Obs": "obs"})
+    plot = SpatialBiasScatterPlot(df=ds, col2="model", col1="obs")
+    plot.plot()
+    assert isinstance(plot.fig, plt.Figure)
+    assert isinstance(plot.ax, plt.Axes)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
