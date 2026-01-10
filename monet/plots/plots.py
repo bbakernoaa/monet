@@ -349,7 +349,6 @@ def spatial_bias_scatter(
     *,
     vmin: t.Optional[float] = None,
     vmax: t.Optional[float] = None,
-    savename: str = "",
     cmap: str = "RdBu_r",
     fig: t.Optional[plt.Figure] = None,
     ax: t.Optional[plt.Axes] = None,
@@ -366,8 +365,6 @@ def spatial_bias_scatter(
         Minimum value for colorscale. If None, automatically determined.
     vmax : float, optional
         Maximum value for colorscale. If None, automatically determined.
-    savename : str, default ""
-        If provided, save the figure to this path.
     cmap : str or matplotlib.colors.Colormap, default "RdBu_r"
         Colormap to use for bias values.
     fig : matplotlib.figure.Figure, optional
@@ -420,7 +417,6 @@ def spatial_bias_scatter(
         **kwargs,
     )
 
-    _savefig(fig, save_name=savename)
     return fig, ax
 
 
