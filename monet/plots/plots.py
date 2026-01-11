@@ -7,6 +7,8 @@ import typing as t
 
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
+from matplotlib.collections import PathCollection
+from matplotlib.colorbar import Colorbar
 import numpy as np
 import seaborn as sns
 import xarray as xr
@@ -354,7 +356,7 @@ def spatial_bias_scatter(
     fig: t.Optional[plt.Figure] = None,
     ax: t.Optional[plt.Axes] = None,
     **kwargs,
-) -> t.Tuple[plt.Figure, plt.Axes]:
+) -> t.Tuple[plt.Figure, plt.Axes, PathCollection]:
     """Create a scatter plot showing bias on a map.
 
     Parameters
@@ -379,8 +381,8 @@ def spatial_bias_scatter(
 
     Returns
     -------
-    t.Tuple[plt.Figure, plt.Axes]
-        The figure and axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes, PathCollection]
+        The figure, axes, and mappable artist for the colorbar.
 
     Notes
     -----
@@ -404,7 +406,7 @@ def spatial_bias_scatter(
     else:
         size = xr.full_like(size, 20)
 
-    plot_ds.plot.scatter(
+    cbar = plot_ds.plot.scatter(
         ax=ax,
         x="longitude",
         y="latitude",
@@ -421,7 +423,7 @@ def spatial_bias_scatter(
     )
 
     _savefig(fig, save_name=savename)
-    return fig, ax
+    return fig, ax, cbar
 
 
 @_default_sns_context
@@ -435,7 +437,7 @@ def timeseries(
     title="",
     ylabel=None,
     label=None,
-):
+) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a timeseries plot with shaded error bounds.
 
     Parameters
@@ -461,8 +463,8 @@ def timeseries(
 
     Returns
     -------
-    matplotlib.axes.Axes
-        The axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes containing the plot.
 
     Notes
     -----
@@ -471,10 +473,12 @@ def timeseries(
     """
     with sns.axes_style("ticks"):
         if ax is None:
-            f, ax = plt.subplots(figsize=(11, 6), frameon=False)
+            fig, ax = plt.subplots(figsize=(11, 6), frameon=False)
+        else:
+            fig = ax.figure
+        m = df.groupby("time").mean(numeric_only=True)  # mean values for each sample time period
+        e = df.groupby("time").std(numeric_only=True)  # std values for each sample time period
         df.index = df[x]
-        m = df.groupby("time").mean()  # mean values for each sample time period
-        e = df.groupby("time").std()  # std values for each sample time period
         variable = df.variable[0]
         if df.columns.isin(["units"]).max():
             unit = df.units[0]
@@ -501,11 +505,11 @@ def timeseries(
         plt.title(title)
         plt.tight_layout()
 
-    return ax
+    return fig, ax
 
 
 @_default_sns_context
-def kdeplot(df, title=None, label=None, ax=None, **kwargs):
+def kdeplot(df, title=None, label=None, ax=None, **kwargs) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a kernel density estimate plot.
 
     Parameters
@@ -524,20 +528,22 @@ def kdeplot(df, title=None, label=None, ax=None, **kwargs):
 
     Returns
     -------
-    matplotlib.axes.Axes
-        The axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes containing the plot.
     """
     with sns.axes_style("ticks"):
         if ax is None:
-            f, ax = plt.subplots(figsize=(11, 6), frameon=False)
+            fig, ax = plt.subplots(figsize=(11, 6), frameon=False)
             sns.despine()
+        else:
+            fig = ax.figure
         ax = sns.kdeplot(df, ax=ax, label=label, **kwargs)
 
-    return ax
+    return fig, ax
 
 
 @_default_sns_context
-def scatter(df, x=None, y=None, title=None, label=None, ax=None, **kwargs):
+def scatter(df, x=None, y=None, title=None, label=None, ax=None, **kwargs) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a scatter plot with regression line.
 
     Parameters
@@ -560,16 +566,18 @@ def scatter(df, x=None, y=None, title=None, label=None, ax=None, **kwargs):
 
     Returns
     -------
-    matplotlib.axes.Axes
-        The axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes containing the plot.
     """
     with sns.axes_style("ticks"):
         if ax is None:
-            f, ax = plt.subplots(figsize=(8, 6), frameon=False)
+            fig, ax = plt.subplots(figsize=(8, 6), frameon=False)
+        else:
+            fig = ax.figure
         ax = sns.regplot(data=df, x=x, y=y, label=label, **kwargs)
         plt.title(title)
 
-    return ax
+    return fig, ax
 
 
 @_default_sns_context

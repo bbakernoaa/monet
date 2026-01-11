@@ -1,5 +1,5 @@
 import typing as t
-
+import pandas as pd
 from cartopy.mpl.feature_artist import FeatureArtist
 from cartopy.mpl.gridliner import Gridliner
 import cartopy.crs as ccrs
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
-
+from matplotlib.collections import PathCollection
 from monet.plots import plots
 from monet.plots.plots import _thin_data
 
@@ -203,7 +203,7 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     ds = bias_scatter_data_xr
 
     # --- Test case 1: No ax provided ---
-    fig_out, ax_out = plots.spatial_bias_scatter(ds)
+    fig_out, ax_out, cbar_out = plots.spatial_bias_scatter(ds)
     assert isinstance(fig_out, matplotlib.figure.Figure)
     assert isinstance(ax_out, matplotlib.axes.Axes)
     assert len(ax_out.collections) > 0, "Scatter plot should be added"
@@ -214,7 +214,7 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     ax_in = fig_in.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
     initial_collections = len(ax_in.collections)
 
-    fig_out_2, ax_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
+    fig_out_2, ax_out_2, cbar_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
 
     assert fig_out_2 is fig_in
     assert ax_out_2 is ax_in
@@ -243,3 +243,50 @@ def test_spatial_contourf_with_ax(spatial_data: xr.DataArray) -> None:
     assert fig_out is fig_in
     assert ax_out is ax_in
     plt.close(fig_in)
+
+
+def test_spatial_bias_scatter_return_signature():
+    """Test that spatial_bias_scatter returns fig, ax, and cbar."""
+    ds = xr.Dataset(
+        {
+            "obs": (("x",), [1, 2, 3]),
+            "model": (("x",), [1.5, 2.5, 3.5]),
+            "latitude": (("x",), [30, 40, 50]),
+            "longitude": (("x",), [-100, -110, -120]),
+        }
+    )
+    fig, ax, cbar = plots.spatial_bias_scatter(ds)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+    assert isinstance(cbar, PathCollection)
+
+
+def test_timeseries_return_signature():
+    """Test that timeseries returns fig and ax."""
+    df = pd.DataFrame(
+        {
+            "time": pd.to_datetime(["2023-01-01", "2023-01-01", "2023-01-02"]),
+            "obs": [10, 12, 15],
+            "variable": ["O3", "O3", "O3"],
+            "units": ["ppm", "ppm", "ppm"],
+        }
+    )
+    fig, ax = plots.timeseries(df)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+
+
+def test_kdeplot_return_signature():
+    """Test that kdeplot returns fig and ax."""
+    df = pd.Series(np.random.randn(100))
+    fig, ax = plots.kdeplot(df)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+
+
+def test_scatter_return_signature():
+    """Test that scatter returns fig and ax."""
+    df = pd.DataFrame({"x": np.random.randn(100), "y": np.random.randn(100)})
+    fig, ax = plots.scatter(df, x="x", y="y")
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
