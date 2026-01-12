@@ -7,6 +7,7 @@ import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -181,6 +182,52 @@ def test_spatial_imshow_with_ax(spatial_data: xr.DataArray) -> None:
 
     assert fig_out is fig_in
     assert ax_out is ax_in
+    plt.close(fig_in)
+
+
+@pytest.fixture
+def timeseries_data() -> pd.DataFrame:
+    """Create a sample pandas DataFrame for timeseries plots."""
+    times = pd.to_datetime(
+        [
+            "2023-01-01 00:00:00",
+            "2023-01-01 01:00:00",
+            "2023-01-01 02:00:00",
+            "2023-01-01 00:00:00",  # Duplicate time for aggregation
+        ]
+    )
+    data = {
+        "time": times,
+        "obs": [10.0, 12.0, 11.0, 11.0],
+        "model": [9.0, 13.0, 10.0, 10.0],
+        "variable": ["O3"] * 4,
+        "units": ["ppb"] * 4,
+        "non_numeric": ["A", "B", "C", "D"],  # Test numeric_only=True
+    }
+    return pd.DataFrame(data)
+
+
+def test_timeseries_plot_returns_fig_ax(timeseries_data: pd.DataFrame) -> None:
+    """Test that the timeseries plot function returns a Figure and Axes tuple."""
+    df = timeseries_data
+
+    # --- Test case 1: No ax provided ---
+    fig, ax = plots.timeseries(df)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert isinstance(ax, matplotlib.axes.Axes)
+    assert ax.get_title() == ""
+    assert ax.get_ylabel() == "O3 (ppb)"
+    plt.close(fig)
+
+    # --- Test case 2: Pre-existing ax provided ---
+    fig_in = plt.figure()
+    ax_in = fig_in.add_subplot(1, 1, 1)
+
+    fig_out, ax_out = plots.timeseries(df, ax=ax_in, title="Test Title")
+
+    assert fig_out is fig_in
+    assert ax_out is ax_in
+    assert ax_out.get_title() == "Test Title"
     plt.close(fig_in)
 
 

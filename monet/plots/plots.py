@@ -8,6 +8,7 @@ import typing as t
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import xarray as xr
 
@@ -426,16 +427,16 @@ def spatial_bias_scatter(
 
 @_default_sns_context
 def timeseries(
-    df,
-    x="time",
-    y="obs",
-    ax=None,
-    plotargs={},
-    fillargs={"alpha": 0.2},
-    title="",
-    ylabel=None,
-    label=None,
-):
+    df: pd.DataFrame,
+    x: str = "time",
+    y: str = "obs",
+    ax: t.Optional[plt.Axes] = None,
+    plotargs: t.Optional[t.Dict] = None,
+    fillargs: t.Optional[t.Dict] = None,
+    title: str = "",
+    ylabel: t.Optional[str] = None,
+    label: t.Optional[str] = None,
+) -> t.Tuple[plt.Figure, plt.Axes]:
     """Create a timeseries plot with shaded error bounds.
 
     Parameters
@@ -448,9 +449,9 @@ def timeseries(
         Column name to use for the y-axis (values to plot).
     ax : matplotlib.axes.Axes, optional
         Axes to plot on. If None, creates a new figure and axes.
-    plotargs : dict, default {}
+    plotargs : dict, optional
         Additional arguments to pass to DataFrame.plot().
-    fillargs : dict, default {"alpha": 0.2}
+    fillargs : dict, optional
         Additional arguments to pass to fill_between for the error shading.
     title : str, default ""
         Title for the plot.
@@ -461,22 +462,30 @@ def timeseries(
 
     Returns
     -------
-    matplotlib.axes.Axes
-        The axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes]
+        The figure and axes containing the plot.
 
     Notes
     -----
     This function groups the data by time, plots the mean values, and adds
     shading for ±1 standard deviation around the mean.
     """
+    if plotargs is None:
+        plotargs = {}
+    if fillargs is None:
+        fillargs = {"alpha": 0.2}
+
     with sns.axes_style("ticks"):
         if ax is None:
-            f, ax = plt.subplots(figsize=(11, 6), frameon=False)
-        df.index = df[x]
-        m = df.groupby("time").mean()  # mean values for each sample time period
-        e = df.groupby("time").std()  # std values for each sample time period
+            fig, ax = plt.subplots(figsize=(11, 6), frameon=False)
+        else:
+            fig = ax.figure
+
+        df = df.set_index(x)
+        m = df.groupby(x).mean(numeric_only=True)  # mean values for each sample time period
+        e = df.groupby(x).std(numeric_only=True)  # std values for each sample time period
         variable = df.variable[0]
-        if df.columns.isin(["units"]).max():
+        if "units" in df.columns:
             unit = df.units[0]
         else:
             unit = "None"
@@ -493,15 +502,15 @@ def timeseries(
         m[label].plot(ax=ax, **plotargs)
         ax.fill_between(m[label].index, lower, upper, **fillargs)
         if ylabel is None:
-            ax.set_ylabel(variable + " (" + unit + ")")
+            ax.set_ylabel(f"{variable} ({unit})")
         else:
             ax.set_ylabel(label)
         ax.set_xlabel("")
-        plt.legend()
-        plt.title(title)
-        plt.tight_layout()
+        ax.legend()
+        ax.set_title(title)
+        fig.tight_layout()
 
-    return ax
+    return fig, ax
 
 
 @_default_sns_context
