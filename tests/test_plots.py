@@ -244,7 +244,9 @@ def test_spatial_contourf_with_ax(spatial_data: xr.DataArray) -> None:
     assert ax_out is ax_in
     plt.close(fig_in)
 
+
 import pandas as pd
+
 
 @pytest.fixture
 def timeseries_df():
