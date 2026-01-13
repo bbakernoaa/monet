@@ -5,6 +5,9 @@ import warnings
 
 import typing as t
 
+if t.TYPE_CHECKING:
+    import pandas as pd
+
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import numpy as np

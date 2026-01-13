@@ -7,6 +7,7 @@ import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -243,9 +244,6 @@ def test_spatial_contourf_with_ax(spatial_data: xr.DataArray) -> None:
     assert fig_out is fig_in
     assert ax_out is ax_in
     plt.close(fig_in)
-
-
-import pandas as pd
 
 
 @pytest.fixture
