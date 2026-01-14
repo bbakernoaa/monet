@@ -602,32 +602,50 @@ def get_giorgi_region_bounds(
 def get_giorgi_region_df(df: pd.DataFrame) -> pd.DataFrame:
     """Add Giorgi region index and acronym to DataFrame based on lat/lon.
 
+    This is a vectorized implementation using NumPy broadcasting for high
+    performance on large datasets.
+
     Parameters
     ----------
     df : pandas.DataFrame
-        DataFrame containing 'latitude' and 'longitude' columns
+        DataFrame containing 'latitude' and 'longitude' columns.
 
     Returns
     -------
     pandas.DataFrame
         Input DataFrame with added columns:
-        - GIORGI_INDEX: region index number
-        - GIORGI_ACRO: region acronym
+        - GIORGI_INDEX: region index number (float, to accommodate NaN)
+        - GIORGI_ACRO: region acronym (str)
     """
-    df["GIORGI_INDEX"] = None
+    # Extract coordinates and region boundaries into NumPy arrays
+    coords = df[["longitude", "latitude"]].values
+    # Note: Slicing GIORGI_LONMIN to handle data inconsistency (24 vs 22 elements)
+    bounds = np.array(
+        [GIORGI_LONMIN[:22], GIORGI_LATMIN, GIORGI_LONMAX, GIORGI_LATMAX]
+    ).T  # Shape: (22, 4)
+
+    # Use broadcasting to compare all points to all region boundaries at once
+    # Resulting shape: (num_points, num_regions)
+    is_inside = np.all(
+        (coords[:, np.newaxis, :] >= bounds[np.newaxis, :, :2])
+        & (coords[:, np.newaxis, :] <= bounds[np.newaxis, :, 2:]),
+        axis=2,
+    )
+
+    # Find the index of the first region that contains each point
+    # argmax finds the first True value. `is_inside.any(axis=1)` handles points
+    # outside all regions.
+    indices = np.argmax(is_inside, axis=1)
+    mask = is_inside.any(axis=1)
+
+    # Map indices to region data
+    giorgi_indices = np.array(GIORGI_INDICES)
+    giorgi_acronyms = np.array(GIORGI_ACRONYMS)
+    df["GIORGI_INDEX"] = np.full(len(df), np.nan)
     df["GIORGI_ACRO"] = None
-    for i in range(22):
-        latmin, lonmin, latmax, lonmax, acro = get_giorgi_region_bounds(
-            index=int(i + 1)
-        )
-        con = (
-            (df.longitude <= lonmax)
-            & (df.longitude >= lonmin)
-            & (df.latitude <= latmax)
-            & (df.latitude >= latmin)
-        )
-        df.loc[con, "GIORGI_INDEX"] = i + 1
-        df.loc[con, "GIORGI_ACRO"] = acro
+    df.loc[mask, "GIORGI_INDEX"] = giorgi_indices[indices[mask]]
+    df.loc[mask, "GIORGI_ACRO"] = giorgi_acronyms[indices[mask]]
+
     return df
 
 
@@ -674,28 +692,40 @@ def get_epa_region_bounds(
 
 
 def get_epa_region_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Add EPA region information to DataFrame based on lat/lon.
+    """Add EPA region index and acronym to DataFrame based on lat/lon.
+
+    This is a vectorized implementation using NumPy broadcasting for high
+    performance on large datasets.
 
     Parameters
     ----------
     df : pandas.DataFrame
-        DataFrame containing 'latitude' and 'longitude' columns
+        DataFrame containing 'latitude' and 'longitude' columns.
 
     Returns
     -------
     pandas.DataFrame
-        Input DataFrame with added EPA region columns
+        Input DataFrame with added columns:
+        - EPA_INDEX: region index number (float, to accommodate NaN)
+        - EPA_ACRO: region acronym (str)
     """
-    df["EPA_INDEX"] = None
+    coords = df[["longitude", "latitude"]].values
+    bounds = np.array([EPA_LONMIN, EPA_LATMIN, EPA_LONMAX, EPA_LATMAX]).T
+
+    is_inside = np.all(
+        (coords[:, np.newaxis, :] >= bounds[np.newaxis, :, :2])
+        & (coords[:, np.newaxis, :] <= bounds[np.newaxis, :, 2:]),
+        axis=2,
+    )
+
+    indices = np.argmax(is_inside, axis=1)
+    mask = is_inside.any(axis=1)
+
+    epa_indices = np.array(EPA_INDICES)
+    epa_acronyms = np.array(EPA_ACRONYMS)
+    df["EPA_INDEX"] = np.full(len(df), np.nan)
     df["EPA_ACRO"] = None
-    for i in range(13):
-        latmin, lonmin, latmax, lonmax, acro = get_epa_region_bounds(index=int(i + 1))
-        con = (
-            (df.longitude <= lonmax)
-            & (df.longitude >= lonmin)
-            & (df.latitude <= latmax)
-            & (df.latitude >= latmin)
-        )
-        df.loc[con, "EPA_INDEX"] = i + 1
-        df.loc[con, "EPA_ACRO"] = acro
+    df.loc[mask, "EPA_INDEX"] = epa_indices[indices[mask]]
+    df.loc[mask, "EPA_ACRO"] = epa_acronyms[indices[mask]]
+
     return df
