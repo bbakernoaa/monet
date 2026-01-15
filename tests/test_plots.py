@@ -281,3 +281,56 @@ def test_timeseries_plot(timeseries_df):
     assert legend is not None
     assert legend.get_texts()[0].get_text() == "Observation"
     plt.close(ax.figure)
+
+
+@pytest.fixture
+def taylor_diagram_df() -> pd.DataFrame:
+    """Create a sample DataFrame for Taylor diagram plotting."""
+    obs = np.random.normal(loc=10, scale=2, size=100)
+    model1 = obs + np.random.normal(scale=1, size=100)
+    model2 = obs + np.random.normal(scale=1.5, size=100)
+    data = {"obs": obs, "model1": model1, "model2": model2}
+    return pd.DataFrame(data)
+
+
+def test_create_taylor_diagram_standalone(taylor_diagram_df: pd.DataFrame) -> None:
+    """Test creating a Taylor diagram from scratch."""
+    df = taylor_diagram_df
+    dia = plots.create_taylor_diagram(df, col1="obs", col2="model1", label2="Model 1")
+
+    assert dia is not None
+    assert hasattr(dia, "samplePoints")
+    # One for the reference 'obs', one for 'model1'
+    assert len(dia.samplePoints) == 2
+    plt.close(plt.gcf())
+
+
+def test_create_taylor_diagram_addon(taylor_diagram_df: pd.DataFrame) -> None:
+    """Test adding a sample to an existing Taylor diagram."""
+    df = taylor_diagram_df
+    # Create the initial diagram
+    dia1 = plots.create_taylor_diagram(df, col1="obs", col2="model1", label2="Model 1")
+
+    # Add a second model to the same diagram
+    dia2 = plots.create_taylor_diagram(
+        df, col1="obs", col2="model2", label2="Model 2", addon=True, dia=dia1
+    )
+
+    assert dia2 is dia1  # Should be the same instance
+    # Now should have 3 samplePoints: obs, model1, model2
+    assert len(dia2.samplePoints) == 3
+    plt.close(plt.gcf())
+
+
+def test_create_taylor_diagram_raises_error_addon_no_dia(taylor_diagram_df: pd.DataFrame) -> None:
+    """Test that ValueError is raised if addon=True but no dia is provided."""
+    with pytest.raises(ValueError, match="a 'dia' instance must be provided"):
+        plots.create_taylor_diagram(taylor_diagram_df, col1="obs", col2="model1", addon=True)
+
+
+def test_create_taylor_diagram_raises_error_dia_no_addon(taylor_diagram_df: pd.DataFrame) -> None:
+    """Test that ValueError is raised if a dia is provided but addon=False."""
+    dia = plots.create_taylor_diagram(taylor_diagram_df.copy(), col1="obs", col2="model1")
+    with pytest.raises(ValueError, match="A 'dia' instance was provided, but 'addon' is False"):
+        plots.create_taylor_diagram(taylor_diagram_df, col1="obs", col2="model2", dia=dia)
+    plt.close(plt.gcf())

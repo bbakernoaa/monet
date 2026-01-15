@@ -584,80 +584,93 @@ def scatter(df, x=None, y=None, title=None, label=None, ax=None, **kwargs):
 
 @_default_sns_context
 def create_taylor_diagram(
-    df,
-    marker="o",
-    col1="obs",
-    col2="model",
-    label1="OBS",
-    label2="MODEL",
-    scale=1.5,
-    addon=False,
-    dia=None,
-):
-    """
-    :no-index:
+    df: "pd.DataFrame",
+    marker: str = "o",
+    col1: str = "obs",
+    col2: str = "model",
+    label1: str = "OBS",
+    label2: str = "MODEL",
+    scale: float = 1.5,
+    addon: bool = False,
+    dia: t.Optional["td.TaylorDiagram"] = None,
+) -> "td.TaylorDiagram":
+    """Create a DataFrame-based Taylor diagram.
 
-    Create a DataFrame-based Taylor diagram using the TaylorDiagram class.
-
-    A convenience wrapper for easily creating Taylor diagrams from DataFrames.
-    For the main Taylor diagram implementation, see :mod:`monet.plots.taylordiagram`.
+    A convenience wrapper for creating Taylor diagrams from DataFrames using
+    the :class:`monet.plots.taylordiagram.TaylorDiagram` class.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing observation and model data
+    df : pd.DataFrame
+        DataFrame containing observation and model data.
     marker : str, default "o"
-        Marker style for plotting model points
+        Marker style for plotting model points.
     col1 : str, default "obs"
-        Column name for observations
+        Column name for observations.
     col2 : str, default "model"
-        Column name for model predictions
+        Column name for model predictions.
     label1 : str, default "OBS"
-        Label for observations in legend
+        Label for observations (the reference point).
     label2 : str, default "MODEL"
-        Label for model in legend
+        Label for the model sample.
     scale : float, default 1.5
-        Scale factor for diagram
+        Scale factor for the diagram's radial axis.
     addon : bool, default False
-        If True, add to existing diagram; if False, create new
+        If True, add to an existing TaylorDiagram instance.
     dia : TaylorDiagram, optional
-        Existing diagram to add to if addon=True
+        An existing TaylorDiagram instance to add to. Required if `addon=True`.
 
     Returns
     -------
-    TaylorDiagram
-        The Taylor diagram instance
+    td.TaylorDiagram
+        The Taylor diagram instance.
+
+    Raises
+    ------
+    ValueError
+        If `addon=True` and `dia` is not provided, or if `addon=False` and
+        `dia` is provided.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> from monet.plots import create_taylor_diagram
+    >>> # Create sample data
+    >>> obs = np.random.rand(100) * 10
+    >>> mod = obs + np.random.randn(100)
+    >>> df = pd.DataFrame({'obs': obs, 'model': mod})
+    >>> # Create the diagram
+    >>> dia = create_taylor_diagram(df, col1='obs', col2='model')
     """
-    # Same implementation as before
     from numpy import corrcoef
 
-    df = df.drop_duplicates().dropna(subset=[col1, col2])
+    df = df.drop_duplicates(subset=[col1, col2]).dropna(subset=[col1, col2])
 
-    if not addon and dia is None:
-        with sns.axes_style("ticks"):
-            f = plt.figure(figsize=(12, 10))
-            obsstd = df[col1].std()
-
-            dia = td.TaylorDiagram(obsstd, scale=scale, fig=f, rect=111, label=label1)
-            plt.grid(linewidth=1, alpha=0.5)
-            cc = corrcoef(df[col1].values, df[col2].values)[0, 1]
-            dia.add_sample(
-                df[col2].std(), cc, marker=marker, zorder=9, ls=None, label=label2
-            )
-            contours = dia.add_contours(colors="0.5")
-            plt.clabel(contours, inline=1, fontsize=10)
-            plt.grid(alpha=0.5)
-            plt.legend(fontsize="small", loc="best")
-
-    elif not addon and dia is not None:
-        print("Do you want to add this on? if so please turn the addon keyword to True")
-    elif addon and dia is None:
-        print("Please pass the previous Taylor Diagram Instance with dia keyword...")
-    else:
-        cc = corrcoef(df.Obs.values, df.CMAQ.values)[0, 1]
-        dia.add_sample(
-            df.CMAQ.std(), cc, marker=marker, zorder=9, ls=None, label=label1
+    if addon:
+        if dia is None:
+            raise ValueError("To add to a diagram, a 'dia' instance must be provided.")
+    elif dia is not None:
+        raise ValueError(
+            "A 'dia' instance was provided, but 'addon' is False. "
+            "Set addon=True to add to an existing diagram."
         )
-        plt.legend(fontsize="small", loc="best")
-        plt.tight_layout()
+    else:
+        # Create a new diagram
+        with sns.axes_style("ticks"):
+            fig = plt.figure(figsize=(12, 10))
+            obsstd = df[col1].std()
+            dia = td.TaylorDiagram(obsstd, scale=scale, fig=fig, rect=111, label=label1)
+            dia.add_contours(colors="0.5")
+            plt.grid(linewidth=1, alpha=0.5)
+
+    # Add the model sample to the diagram
+    model_std = df[col2].std()
+    cc = corrcoef(df[col1].values, df[col2].values)[0, 1]
+    dia.add_sample(model_std, cc, marker=marker, zorder=9, ls="", label=label2)
+
+    # Finalize plot details
+    plt.legend(fontsize="small", loc="best")
+    plt.tight_layout()
+
     return dia
