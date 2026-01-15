@@ -599,54 +599,65 @@ def get_giorgi_region_bounds(
         return df.loc[df.acronym == acronym.upper()].values.flatten()
 
 
-def get_giorgi_region_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Add Giorgi region index and acronym to DataFrame based on lat/lon.
+def _add_region_info(coords, bounds, region_indices, region_acronyms):
+    """Worker function to find region for a set of coordinates."""
+    is_inside = np.all(
+        (coords[:, np.newaxis, :] >= bounds[np.newaxis, :, :2])
+        & (coords[:, np.newaxis, :] <= bounds[np.newaxis, :, 2:]),
+        axis=2,
+    )
+    indices = np.argmax(is_inside, axis=1)
+    mask = is_inside.any(axis=1)
+
+    out_indices = np.full(len(coords), np.nan)
+    out_acronyms = np.full(len(coords), None, dtype=object)
+
+    out_indices[mask] = np.array(region_indices)[indices[mask]]
+    out_acronyms[mask] = np.array(region_acronyms)[indices[mask]]
+
+    return out_indices, out_acronyms
+
+
+def get_giorgi_region_df(dset):
+    """Add Giorgi region index and acronym to DataFrame or Dataset.
 
     This is a vectorized implementation using NumPy broadcasting for high
     performance on large datasets.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing 'latitude' and 'longitude' columns.
+    dset : pandas.DataFrame or xarray.Dataset
+        DataFrame or Dataset containing 'latitude' and 'longitude' columns/coordinates.
 
     Returns
     -------
-    pandas.DataFrame
-        Input DataFrame with added columns:
+    pandas.DataFrame or xarray.Dataset
+        Input object with added columns/variables:
         - GIORGI_INDEX: region index number (float, to accommodate NaN)
         - GIORGI_ACRO: region acronym (str)
     """
-    # Extract coordinates and region boundaries into NumPy arrays
-    coords = df[["longitude", "latitude"]].values
-    # Note: Slicing GIORGI_LONMIN to handle data inconsistency (24 vs 22 elements)
     bounds = np.array(
         [GIORGI_LONMIN[:22], GIORGI_LATMIN, GIORGI_LONMAX, GIORGI_LATMAX]
-    ).T  # Shape: (22, 4)
+    ).T
 
-    # Use broadcasting to compare all points to all region boundaries at once
-    # Resulting shape: (num_points, num_regions)
-    is_inside = np.all(
-        (coords[:, np.newaxis, :] >= bounds[np.newaxis, :, :2])
-        & (coords[:, np.newaxis, :] <= bounds[np.newaxis, :, 2:]),
-        axis=2,
-    )
+    if isinstance(dset, pd.DataFrame):
+        coords = dset[["longitude", "latitude"]].values
+        indices, acronyms = _add_region_info(
+            coords, bounds, GIORGI_INDICES, GIORGI_ACRONYMS
+        )
+        dset["GIORGI_INDEX"] = indices
+        dset["GIORGI_ACRO"] = acronyms
+        return dset
+    else:  # xarray.Dataset
+        lon, lat = np.meshgrid(dset.longitude, dset.latitude)
+        coords = np.vstack([lon.ravel(), lat.ravel()]).T
+        indices, acronyms = _add_region_info(
+            coords, bounds, GIORGI_INDICES, GIORGI_ACRONYMS
+        )
 
-    # Find the index of the first region that contains each point
-    # argmax finds the first True value. `is_inside.any(axis=1)` handles points
-    # outside all regions.
-    indices = np.argmax(is_inside, axis=1)
-    mask = is_inside.any(axis=1)
-
-    # Map indices to region data
-    giorgi_indices = np.array(GIORGI_INDICES)
-    giorgi_acronyms = np.array(GIORGI_ACRONYMS)
-    df["GIORGI_INDEX"] = np.full(len(df), np.nan)
-    df["GIORGI_ACRO"] = None
-    df.loc[mask, "GIORGI_INDEX"] = giorgi_indices[indices[mask]]
-    df.loc[mask, "GIORGI_ACRO"] = giorgi_acronyms[indices[mask]]
-
-    return df
+        dset["GIORGI_INDEX"] = (("latitude", "longitude"), indices.reshape(lon.shape))
+        dset["GIORGI_ACRO"] = (("latitude", "longitude"), acronyms.reshape(lon.shape))
+        return dset
 
 
 def get_epa_region_bounds(
@@ -691,41 +702,37 @@ def get_epa_region_bounds(
         return df.loc[df.acronym == acronym.upper()].values.flatten()
 
 
-def get_epa_region_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Add EPA region index and acronym to DataFrame based on lat/lon.
+def get_epa_region_df(dset):
+    """Add EPA region index and acronym to DataFrame or Dataset.
 
     This is a vectorized implementation using NumPy broadcasting for high
     performance on large datasets.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame containing 'latitude' and 'longitude' columns.
+    dset : pandas.DataFrame or xarray.Dataset
+        DataFrame or Dataset containing 'latitude' and 'longitude' columns/coordinates.
 
     Returns
     -------
-    pandas.DataFrame
-        Input DataFrame with added columns:
+    pandas.DataFrame or xarray.Dataset
+        Input object with added columns/variables:
         - EPA_INDEX: region index number (float, to accommodate NaN)
         - EPA_ACRO: region acronym (str)
     """
-    coords = df[["longitude", "latitude"]].values
     bounds = np.array([EPA_LONMIN, EPA_LATMIN, EPA_LONMAX, EPA_LATMAX]).T
 
-    is_inside = np.all(
-        (coords[:, np.newaxis, :] >= bounds[np.newaxis, :, :2])
-        & (coords[:, np.newaxis, :] <= bounds[np.newaxis, :, 2:]),
-        axis=2,
-    )
+    if isinstance(dset, pd.DataFrame):
+        coords = dset[["longitude", "latitude"]].values
+        indices, acronyms = _add_region_info(coords, bounds, EPA_INDICES, EPA_ACRONYMS)
+        dset["EPA_INDEX"] = indices
+        dset["EPA_ACRO"] = acronyms
+        return dset
+    else:  # xarray.Dataset
+        lon, lat = np.meshgrid(dset.longitude, dset.latitude)
+        coords = np.vstack([lon.ravel(), lat.ravel()]).T
+        indices, acronyms = _add_region_info(coords, bounds, EPA_INDICES, EPA_ACRONYMS)
 
-    indices = np.argmax(is_inside, axis=1)
-    mask = is_inside.any(axis=1)
-
-    epa_indices = np.array(EPA_INDICES)
-    epa_acronyms = np.array(EPA_ACRONYMS)
-    df["EPA_INDEX"] = np.full(len(df), np.nan)
-    df["EPA_ACRO"] = None
-    df.loc[mask, "EPA_INDEX"] = epa_indices[indices[mask]]
-    df.loc[mask, "EPA_ACRO"] = epa_acronyms[indices[mask]]
-
-    return df
+        dset["EPA_INDEX"] = (("latitude", "longitude"), indices.reshape(lon.shape))
+        dset["EPA_ACRO"] = (("latitude", "longitude"), acronyms.reshape(lon.shape))
+        return dset
