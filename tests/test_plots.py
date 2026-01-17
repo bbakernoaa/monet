@@ -202,11 +202,13 @@ def bias_scatter_data_xr() -> xr.Dataset:
 def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     """Test the xarray-native spatial_bias_scatter function."""
     ds = bias_scatter_data_xr
+    import matplotlib.colorbar
 
     # --- Test case 1: No ax provided ---
-    fig_out, ax_out = plots.spatial_bias_scatter(ds)
+    fig_out, ax_out, cbar_out = plots.spatial_bias_scatter(ds)
     assert isinstance(fig_out, matplotlib.figure.Figure)
     assert isinstance(ax_out, matplotlib.axes.Axes)
+    assert isinstance(cbar_out, matplotlib.colorbar.Colorbar)
     assert len(ax_out.collections) > 0, "Scatter plot should be added"
     plt.close(fig_out)
 
@@ -215,10 +217,11 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     ax_in = fig_in.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
     initial_collections = len(ax_in.collections)
 
-    fig_out_2, ax_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
+    fig_out_2, ax_out_2, cbar_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
 
     assert fig_out_2 is fig_in
     assert ax_out_2 is ax_in
+    assert isinstance(cbar_out_2, matplotlib.colorbar.Colorbar)
     assert len(ax_out_2.collections) > initial_collections, (
         "Scatter plot should be added to existing axes"
     )
