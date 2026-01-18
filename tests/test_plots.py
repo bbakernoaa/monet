@@ -1,10 +1,12 @@
 import typing as t
 
 from cartopy.mpl.feature_artist import FeatureArtist
+from cartopy.mpl.geoaxes import GeoAxes
 from cartopy.mpl.gridliner import Gridliner
 import cartopy.crs as ccrs
 import matplotlib.axes
 import matplotlib.figure
+from matplotlib.colorbar import Colorbar
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -204,9 +206,10 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     ds = bias_scatter_data_xr
 
     # --- Test case 1: No ax provided ---
-    fig_out, ax_out = plots.spatial_bias_scatter(ds)
+    fig_out, ax_out, cbar_out = plots.spatial_bias_scatter(ds)
     assert isinstance(fig_out, matplotlib.figure.Figure)
-    assert isinstance(ax_out, matplotlib.axes.Axes)
+    assert isinstance(ax_out, GeoAxes)
+    assert isinstance(cbar_out, Colorbar)
     assert len(ax_out.collections) > 0, "Scatter plot should be added"
     plt.close(fig_out)
 
@@ -215,10 +218,11 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
     ax_in = fig_in.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
     initial_collections = len(ax_in.collections)
 
-    fig_out_2, ax_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
+    fig_out_2, ax_out_2, cbar_out_2 = plots.spatial_bias_scatter(ds, ax=ax_in)
 
     assert fig_out_2 is fig_in
     assert ax_out_2 is ax_in
+    assert isinstance(cbar_out_2, Colorbar)
     assert len(ax_out_2.collections) > initial_collections, (
         "Scatter plot should be added to existing axes"
     )

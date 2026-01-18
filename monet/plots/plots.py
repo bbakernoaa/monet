@@ -8,6 +8,7 @@ import typing as t
 import pandas as pd
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
+from matplotlib.colorbar import Colorbar
 import numpy as np
 import seaborn as sns
 import xarray as xr
@@ -350,12 +351,11 @@ def spatial_bias_scatter(
     *,
     vmin: t.Optional[float] = None,
     vmax: t.Optional[float] = None,
-    savename: str = "",
     cmap: str = "RdBu_r",
     fig: t.Optional[plt.Figure] = None,
     ax: t.Optional[plt.Axes] = None,
     **kwargs,
-) -> t.Tuple[plt.Figure, plt.Axes]:
+) -> t.Tuple[plt.Figure, plt.Axes, Colorbar]:
     """Create a scatter plot showing bias on a map.
 
     Parameters
@@ -367,8 +367,6 @@ def spatial_bias_scatter(
         Minimum value for colorscale. If None, automatically determined.
     vmax : float, optional
         Maximum value for colorscale. If None, automatically determined.
-    savename : str, default ""
-        If provided, save the figure to this path.
     cmap : str or matplotlib.colors.Colormap, default "RdBu_r"
         Colormap to use for bias values.
     fig : matplotlib.figure.Figure, optional
@@ -380,8 +378,8 @@ def spatial_bias_scatter(
 
     Returns
     -------
-    t.Tuple[plt.Figure, plt.Axes]
-        The figure and axes containing the plot.
+    t.Tuple[plt.Figure, plt.Axes, Colorbar]
+        The figure, axes, and colorbar containing the plot.
 
     Notes
     -----
@@ -405,7 +403,7 @@ def spatial_bias_scatter(
     else:
         size = xr.full_like(size, 20)
 
-    plot_ds.plot.scatter(
+    p = plot_ds.plot.scatter(
         ax=ax,
         x="longitude",
         y="latitude",
@@ -421,8 +419,7 @@ def spatial_bias_scatter(
         **kwargs,
     )
 
-    _savefig(fig, save_name=savename)
-    return fig, ax
+    return fig, ax, p.colorbar
 
 
 @_default_sns_context
