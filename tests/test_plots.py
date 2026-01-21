@@ -152,14 +152,14 @@ def test_spatial_map_features(spatial_data: xr.DataArray) -> None:
         fig, ax = plots.spatial(spatial_data)
 
     # Check for coastlines by inspecting the collections on the axes
-    assert any(
-        isinstance(artist, FeatureArtist) for artist in ax.collections
-    ), "Coastline artist not found on the axes."
+    assert any(isinstance(artist, FeatureArtist) for artist in ax.collections), (
+        "Coastline artist not found on the axes."
+    )
 
     # Check for gridlines by inspecting the `artists` list on the axes
-    assert any(
-        isinstance(artist, Gridliner) for artist in ax.artists
-    ), "Gridliner artist not found on the axes."
+    assert any(isinstance(artist, Gridliner) for artist in ax.artists), (
+        "Gridliner artist not found on the axes."
+    )
 
     plt.close(fig)
 
@@ -219,9 +219,9 @@ def test_spatial_bias_scatter_xr(bias_scatter_data_xr: xr.Dataset) -> None:
 
     assert fig_out_2 is fig_in
     assert ax_out_2 is ax_in
-    assert (
-        len(ax_out_2.collections) > initial_collections
-    ), "Scatter plot should be added to existing axes"
+    assert len(ax_out_2.collections) > initial_collections, (
+        "Scatter plot should be added to existing axes"
+    )
     plt.close(fig_in)
 
 
