@@ -98,4 +98,9 @@ def resample_stratify(da, levels, vertical, axis=1, tension=0.0):
     out = interpolate_vertical(da_renamed, levels, level_dim=vertical_name, tension=tension)
 
     # Rename the dimension back to the original name
-    return out.rename({vertical_name: orig_dim})
+    out = out.rename({vertical_name: orig_dim})
+
+    # Preserve the original name
+    out.name = da.name
+
+    return out

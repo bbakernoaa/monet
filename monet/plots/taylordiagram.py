@@ -229,7 +229,7 @@ if __name__ == "__main__":
         ax1 = fig.add_subplot(1, 2, 1, xlabel="X", ylabel="Y")
         ax1.plot(x, data, "ko", label="Data")
         for i, m in enumerate([m1, m2, m3]):
-            ax1.plot(x, m, c=colors_[i], label="Model %d" % (i + 1))
+            ax1.plot(x, m, c=colors_[i], label=f"Model {i + 1}")
     ax1.legend(numpoints=1, prop=dict(size="small"), loc="best")
 
     # Add samples to Taylor diagram
@@ -240,7 +240,7 @@ if __name__ == "__main__":
             marker="s",
             ls="",
             c=colors_[i],
-            label="Model %d" % (i + 1),
+            label=f"Model {i + 1}",
         )
 
     # Add RMS contours, and label them
