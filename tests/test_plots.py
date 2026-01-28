@@ -1,4 +1,3 @@
-
 import cartopy.crs as ccrs
 import matplotlib.axes
 import matplotlib.figure

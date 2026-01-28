@@ -14,7 +14,6 @@ References
    https://doi.org/10.1029/2000WR900033.
 """
 
-
 import numpy as np
 from numpy.typing import ArrayLike
 

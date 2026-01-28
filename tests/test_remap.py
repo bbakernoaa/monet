@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 import xarray as xr
+
 import monet  # noqa: F401
 
 # Try to import cf_xarray to ensure accessor is registered
