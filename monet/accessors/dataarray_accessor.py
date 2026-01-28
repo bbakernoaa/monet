@@ -681,7 +681,7 @@ class MONETAccessor(BaseAccessor):
             Path to export the figure (without extension).
         export_formats : list, optional
             List of formats to export (e.g., ["png", "pdf"]).
-            time_dim : str, default: "time"
+        time_dim : str, default: "time"
             Name of the time dimension.
         ncols : int, default: 3
             Number of columns in the facet grid.
