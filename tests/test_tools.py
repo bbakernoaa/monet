@@ -48,9 +48,7 @@ def test_get_giorgi_region_df():
     assert "GIORGI_ACRO" in result_df.columns
 
     # Check the values
-    np.testing.assert_array_equal(
-        result_df["GIORGI_INDEX"].values, np.array(expected_indices)
-    )
+    np.testing.assert_array_equal(result_df["GIORGI_INDEX"].values, np.array(expected_indices))
     assert result_df["GIORGI_ACRO"].tolist() == expected_acros
 
 
@@ -104,9 +102,7 @@ def test_get_epa_region_df():
     assert "EPA_ACRO" in result_df.columns
 
     # Check the values
-    np.testing.assert_array_equal(
-        result_df["EPA_INDEX"].values, np.array(expected_indices)
-    )
+    np.testing.assert_array_equal(result_df["EPA_INDEX"].values, np.array(expected_indices))
     assert result_df["EPA_ACRO"].tolist() == expected_acros
 
 
@@ -160,6 +156,4 @@ def test_get_giorgi_region_dask():
     assert hasattr(result_lazy.GIORGI_INDEX.data, "chunks")
 
     # Values should be identical after compute
-    np.testing.assert_allclose(
-        result_eager.GIORGI_INDEX.values, result_lazy.GIORGI_INDEX.compute().values
-    )
+    np.testing.assert_allclose(result_eager.GIORGI_INDEX.values, result_lazy.GIORGI_INDEX.compute().values)
