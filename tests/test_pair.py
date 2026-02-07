@@ -154,6 +154,37 @@ def test_accessor_pair(sample_model, sample_obs_df):
         assert isinstance(res3, pd.DataFrame)
 
 
+def test_pair_gridded_to_gridded(sample_model):
+    # Create another gridded dataset (obs)
+    nx, ny = 5, 5
+    data = np.random.rand(24, ny, nx)
+    times = pd.date_range("2023-01-01", periods=24, freq="h")
+    lats = np.linspace(35, 45, ny)
+    lons = np.linspace(-110, -90, nx)
+
+    obs_gridded = xr.Dataset(
+        data_vars={"obs_ozone": (("time", "y", "x"), data)},
+        coords={
+            "time": times,
+            "latitude": (("y", "x"), np.meshgrid(lons, lats)[1]),
+            "longitude": (("y", "x"), np.meshgrid(lons, lats)[0]),
+        },
+    )
+
+    # Pair gridded to gridded
+    with patch("monet.util.resample.resample") as mock_resample:
+        # Resample should return data on the obs grid
+        dummy_data = np.random.rand(24, ny, nx)
+        mock_resample.return_value = xr.Dataset(data_vars={"ozone": (("time", "y", "x"), dummy_data)}, coords=obs_gridded.coords)
+
+        result = pair(sample_model, obs_gridded)
+
+        assert isinstance(result, xr.Dataset)
+        assert "ozone" in result.data_vars
+        assert "obs_ozone" in result.data_vars
+        assert result.ozone.shape == (24, 5, 5)
+
+
 def test_pair_pandas_obs_lazy_model(sample_model, sample_obs_df):
     # Make model lazy
     sample_model = sample_model.chunk({"time": 6})

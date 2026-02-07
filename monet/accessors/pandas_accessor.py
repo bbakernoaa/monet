@@ -231,7 +231,16 @@ class MONETAccessorPandas(BaseAccessor):
         """
         index_name = "index"
         if d is None:
-            d = self._obj
+            d = self._obj.copy()
+        else:
+            d = d.copy()
+
+        # Avoid issues with Arrow-backed strings during expand_dims which uses newaxis indexing
+        # not supported by ArrowStringArray in some versions of pandas/pyarrow.
+        for col in d.columns:
+            if hasattr(d[col], "dtype") and str(d[col].dtype).endswith("[pyarrow]"):
+                d[col] = d[col].astype(object)
+
         if d.index.name is not None:
             index_name = d.index.name
         ds = d.to_xarray().rename({index_name: "x"}).expand_dims("y")
