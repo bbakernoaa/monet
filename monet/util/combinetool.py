@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import xarray as xr
 from pandas import Series, merge_asof
@@ -114,10 +115,15 @@ def _pair_dataframe(model, obs, *, method="nearest", interp_time=False, suffix="
     # Convert to xarray point Dataset
     from ..accessors.pandas_accessor import MONETAccessorPandas
 
+    # Convert Arrow strings to objects in unique_locs_p to avoid Dask/Xarray issues later
+    for col in unique_locs_p.columns:
+        if pd.api.types.is_string_dtype(unique_locs_p[col]) and not pd.api.types.is_numeric_dtype(unique_locs_p[col]):
+            unique_locs_p[col] = np.asarray(unique_locs_p[col], dtype=object)
+
     point_ds = MONETAccessorPandas(unique_locs_p)._df_to_da()
     if "siteid" in unique_locs_p.columns:
         # Add siteid as a coordinate so it is preserved during remap and conversion back to DF
-        point_ds = point_ds.assign_coords(siteid=(("x"), unique_locs_p.siteid))
+        point_ds = point_ds.assign_coords(siteid=(("x"), unique_locs_p.siteid.values))
 
     # Remap model to points
     paired_da = point_ds.monet.remap(model, method=method, **kwargs)
@@ -148,6 +154,16 @@ def _pair_dataframe(model, obs, *, method="nearest", interp_time=False, suffix="
     # Clean up dimensions from conversion
     cols_to_drop = [c for c in ["x", "y", "z", "latitude", "longitude"] if c in paired_df.columns]
     paired_df = paired_df.drop(columns=cols_to_drop)
+
+    # Ensure no Arrow-backed strings remain in paired_df before merging
+    if has_dask_df and isinstance(paired_df, dd.DataFrame):
+        # We can't easily iterate and convert columns in dask.dataframe eagerly,
+        # but the previous conversions should have prevented them from getting into paired_da_ds.
+        pass
+    else:
+        for col in paired_df.columns:
+            if pd.api.types.is_string_dtype(paired_df[col]) and not pd.api.types.is_numeric_dtype(paired_df[col]):
+                paired_df[col] = np.asarray(paired_df[col], dtype=object)
 
     # Handle suffixes and variable names
     if isinstance(model, xr.DataArray):
