@@ -238,8 +238,16 @@ class MONETAccessorPandas(BaseAccessor):
         # Avoid issues with Arrow-backed strings during expand_dims which uses newaxis indexing
         # not supported by ArrowStringArray in some versions of pandas/pyarrow.
         for col in d.columns:
-            if hasattr(d[col], "dtype") and str(d[col].dtype).endswith("[pyarrow]"):
-                d[col] = d[col].astype(object)
+            if pd.api.types.is_string_dtype(d[col]) and not pd.api.types.is_numeric_dtype(d[col]):
+                try:
+                    d[col] = d[col].astype(object)
+                except Exception:
+                    pass
+        if pd.api.types.is_string_dtype(d.index) and not pd.api.types.is_numeric_dtype(d.index):
+            try:
+                d.index = d.index.astype(object)
+            except Exception:
+                pass
 
         if d.index.name is not None:
             index_name = d.index.name
