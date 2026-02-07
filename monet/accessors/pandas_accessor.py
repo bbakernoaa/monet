@@ -413,6 +413,25 @@ class MONETAccessorPandas(BaseAccessor):
             **kwargs,
         )
 
+    def pair(self, model, **kwargs):
+        """Pair this DataFrame with model data.
+
+        Parameters
+        ----------
+        model : xarray.Dataset or xarray.DataArray
+            Model data to pair with.
+        **kwargs : dict
+            Additional arguments passed to `monet.pair`.
+
+        Returns
+        -------
+        pandas.DataFrame or dask.dataframe.DataFrame
+            The DataFrame with paired model data.
+        """
+        from ..util.combinetool import pair
+
+        return pair(model, self._obj, **kwargs)
+
     def plot_lines_map(
         self,
         lon_col="longitude",
