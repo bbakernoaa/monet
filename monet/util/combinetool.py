@@ -146,6 +146,11 @@ def _pair_dataframe(model, obs, *, method="nearest", interp_time=False, suffix="
     else:
         paired_da_ds = paired_da
 
+    # Ensure all strings are object dtype to avoid Dask/Arrow issues during conversion
+    for var in paired_da_ds.variables:
+        if pd.api.types.is_string_dtype(paired_da_ds[var]) and not pd.api.types.is_numeric_dtype(paired_da_ds[var]):
+            paired_da_ds[var] = paired_da_ds[var].astype(object)
+
     if paired_da.chunks:
         paired_df = paired_da_ds.to_dask_dataframe().reset_index()
     else:
