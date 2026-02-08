@@ -35,7 +35,7 @@ This guide is for contributors and maintainers of MONET. It covers project struc
 6. **Documentation:**
    - Update or add documentation in `docs/` using Markdown.
    - API references are automatically generated via `mkdocstrings`.
-7. **Pull Request:** Open a PR to the `main` branch.
+7. **Pull Request:** Open a PR to the `develop` branch.
 
 ## Best Practices
 

@@ -1,7 +1,7 @@
 site_name: MONET
 site_url: https://monet-arl.readthedocs.io
 repo_url: https://github.com/noaa-oar-arl/monet
-edit_uri: edit/main/docs/
+edit_uri: edit/develop/docs/
 
 theme:
   name: material
