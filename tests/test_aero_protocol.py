@@ -28,14 +28,13 @@ except ImportError:
 
 def test_resample_aero_protocol(monkeypatch):
     # Always mock for consistency in protocol testing
-    mock_xregrid = MagicMock()
-    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-    import xregrid
+    import monet.util.resample
 
     mock_regridder = MagicMock()
-    xregrid.Regridder.return_value = mock_regridder
     mock_regridder.side_effect = lambda x: x  # Identity for testing
+    monkeypatch.setattr(monet.util.resample, "Regridder", MagicMock(return_value=mock_regridder), raising=False)
+    monkeypatch.setattr(monet.util.resample, "has_xregrid", True)
+
     """Verify resample follows Aero Protocol: NumPy and Dask consistency."""
     # Create source data
     nx, ny = 20, 10
@@ -69,18 +68,19 @@ def test_resample_aero_protocol(monkeypatch):
 
 def test_pair_aero_protocol(monkeypatch):
     # Always mock for consistency in protocol testing
-    mock_xregrid = MagicMock()
-    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-    import xregrid
+    import monet.util.resample
+
+    mock_regridder_cls = MagicMock()
+    monkeypatch.setattr(monet.util.resample, "Regridder", mock_regridder_cls, raising=False)
+    monkeypatch.setattr(monet.util.resample, "has_xregrid", True)
 
     mock_regridder = MagicMock()
-    xregrid.Regridder.return_value = mock_regridder
+    mock_regridder_cls.return_value = mock_regridder
 
     # Mock Regridder to return the source data mapped to target points
     def mock_apply(source):
         # Target was passed to Regridder(source, target, ...)
-        target = xregrid.Regridder.call_args[0][1]
+        target = mock_regridder_cls.call_args[0][1]
         # Create a result dataset with target's structure
         res = xr.Dataset(coords=target.coords)
         for var in source.data_vars:
@@ -129,12 +129,10 @@ def test_pair_aero_protocol(monkeypatch):
 
     # Lazy run (Dask model)
     if has_dask:
-        model_lazy = model.chunk({"x": 5, "y": 5})
+        model_lazy = model.chunk({"x": 5})
         paired_lazy = pair(model_lazy, obs_df, method="nearest")
-        # Since obs is pandas, and we don't force dask output unless obs is dask,
-        # but the internal remapping should have been lazy.
-        # Actually, in _pair_dataframe, if model is dask, it uses to_dask_dataframe().
-        assert isinstance(paired_lazy, pd.DataFrame)  # if merge=True and obs is pandas, it merges to pandas
+        # Since model is dask, internal remapping is lazy, resulting in Dask DataFrame
+        assert isinstance(paired_lazy, dd.DataFrame)
 
         # If obs is dask
         obs_dd = dd.from_pandas(obs_df, npartitions=1)
@@ -142,7 +140,8 @@ def test_pair_aero_protocol(monkeypatch):
         assert isinstance(paired_dd, dd.DataFrame)
 
         # Compare results
-        pd.testing.assert_frame_equal(paired_eager, paired_dd.compute().reset_index(drop=True)[paired_eager.columns])
+        res_lazy = paired_lazy.compute().reset_index(drop=True)[paired_eager.columns]
+        pd.testing.assert_frame_equal(paired_eager, res_lazy)
 
 
 def test_ugrid_detection():
@@ -163,16 +162,17 @@ def test_ugrid_detection():
 
 def test_ugrid_pairing_smoke(monkeypatch):
     # Always mock for consistency in protocol testing
-    mock_xregrid = MagicMock()
-    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-    import xregrid
+    import monet.util.resample
+
+    mock_regridder_cls = MagicMock()
+    monkeypatch.setattr(monet.util.resample, "Regridder", mock_regridder_cls, raising=False)
+    monkeypatch.setattr(monet.util.resample, "has_xregrid", True)
 
     mock_regridder = MagicMock()
-    xregrid.Regridder.return_value = mock_regridder
+    mock_regridder_cls.return_value = mock_regridder
 
     def mock_apply(source):
-        target = xregrid.Regridder.call_args[0][1]
+        target = mock_regridder_cls.call_args[0][1]
         res = xr.Dataset(coords=target.coords)
         for var in source.data_vars:
             if not source[var].dims:

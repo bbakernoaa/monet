@@ -5,6 +5,22 @@ import numpy as np
 import xarray as xr
 
 
+# Check for xregrid and esmpy at module level for better mockability and performance
+try:
+    import esmpy  # noqa: F401
+    from xregrid import Regridder
+
+    has_xregrid = True
+except ImportError:
+    try:
+        import ESMF as esmpy  # noqa: F401
+        from xregrid import Regridder
+
+        has_xregrid = True
+    except ImportError:
+        has_xregrid = False
+
+
 def resample(
     source_data: xr.DataArray | xr.Dataset,
     target_grid: xr.DataArray | xr.Dataset,
@@ -33,20 +49,6 @@ def resample(
     --------
     >>> out = resample(source, target, method='bilinear')
     """
-    # Check for xregrid and esmpy
-    try:
-        import esmpy  # noqa: F401
-        from xregrid import Regridder
-
-        has_xregrid = True
-    except ImportError:
-        try:
-            import ESMF as esmpy  # noqa: F401
-            from xregrid import Regridder
-
-            has_xregrid = True
-        except ImportError:
-            has_xregrid = False
 
     # Handle backward compatibility for xesmf_method
     if method == "xesmf":
