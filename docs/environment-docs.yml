@@ -23,12 +23,11 @@ dependencies:
   # optional
   - pyresample
   #
-  # docs
-  - mkdocs
-  - mkdocs-material
-  - mkdocstrings-python
-  - mkdocs-gallery
   #
   - pip>=21.1
   - pip:
+      - mkdocs
+      - mkdocs-material
+      - mkdocstrings[python]
+      - mkdocs-gallery
       - "-e ../"
