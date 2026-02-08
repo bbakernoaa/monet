@@ -24,11 +24,10 @@ dependencies:
   - pyresample
   #
   # docs
-  - nbsphinx
-  - sphinx=7.*
-  - sphinx-autobuild
-  - sphinx-autosummary-accessors
-  - sphinx_rtd_theme>=0.4
+  - mkdocs
+  - mkdocs-material
+  - mkdocstrings-python
+  - mkdocs-gallery
   #
   - pip>=21.1
   - pip:
