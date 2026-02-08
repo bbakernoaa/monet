@@ -4,7 +4,6 @@ import typing as t
 import numpy as np
 import xarray as xr
 
-
 # Check for xregrid and esmpy at module level for better mockability and performance
 try:
     import esmpy  # noqa: F401

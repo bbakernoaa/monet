@@ -226,13 +226,13 @@ class BaseAccessor:
 
     @staticmethod
     def _dataset_to_monet(
-        dset,
-        lat_name="latitude",
-        lon_name="longitude",
-        latlon2d=None,
-        lon180=None,
-        coards_compliant=False,
-    ):
+        dset: xr.DataArray | xr.Dataset,
+        lat_name: str = "latitude",
+        lon_name: str = "longitude",
+        latlon2d: bool | None = None,
+        lon180: bool | None = None,
+        coards_compliant: bool = False,
+    ) -> xr.DataArray | xr.Dataset:
         """Rename xarray DataArray or Dataset coordinate variables for use with monet functions.
 
         Parameters
