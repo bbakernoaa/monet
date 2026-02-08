@@ -341,7 +341,9 @@ class BaseAccessor:
             # Idempotent wrapping is safer than forcing computation to check range
             lon180 = False
 
-        if not lon180 and "longitude" in dset:
+        # Explicitly check coordinates or variables without triggering data loading
+        check_obj = dset.variables if isinstance(dset, xr.Dataset) else dset.coords
+        if not lon180 and "longitude" in check_obj:
             dset["longitude"] = wrap_longitudes(dset["longitude"])
 
         # lat & lon are not coordinate variables in unstructured grid, so we're done

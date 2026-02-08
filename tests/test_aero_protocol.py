@@ -27,16 +27,15 @@ except ImportError:
 
 
 def test_resample_aero_protocol(monkeypatch):
-    if not has_xregrid:
-        # Configure mock
-        mock_xregrid = MagicMock()
-        monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-        monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-        import xregrid
+    # Always mock for consistency in protocol testing
+    mock_xregrid = MagicMock()
+    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
+    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
+    import xregrid
 
-        mock_regridder = MagicMock()
-        xregrid.Regridder.return_value = mock_regridder
-        mock_regridder.side_effect = lambda x: x  # Identity for testing
+    mock_regridder = MagicMock()
+    xregrid.Regridder.return_value = mock_regridder
+    mock_regridder.side_effect = lambda x: x  # Identity for testing
     """Verify resample follows Aero Protocol: NumPy and Dask consistency."""
     # Create source data
     nx, ny = 20, 10
@@ -69,47 +68,47 @@ def test_resample_aero_protocol(monkeypatch):
 
 
 def test_pair_aero_protocol(monkeypatch):
-    if not has_xregrid:
-        mock_xregrid = MagicMock()
-        monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-        monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-        import xregrid
+    # Always mock for consistency in protocol testing
+    mock_xregrid = MagicMock()
+    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
+    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
+    import xregrid
 
-        mock_regridder = MagicMock()
-        xregrid.Regridder.return_value = mock_regridder
+    mock_regridder = MagicMock()
+    xregrid.Regridder.return_value = mock_regridder
 
-        # Mock Regridder to return the source data mapped to target points
-        def mock_apply(source):
-            # Target was passed to Regridder(source, target, ...)
-            target = xregrid.Regridder.call_args[0][1]
-            # Create a result dataset with target's structure
-            res = xr.Dataset(coords=target.coords)
-            for var in source.data_vars:
-                if not source[var].dims:
-                    res[var] = source[var]
-                    continue
-                # Mock: mapping source to target.
-                # Preserves non-spatial dimensions of source.
-                # In this test environment, we'll assume anything not x, y, lat, lon, node is to be preserved.
-                preserved_dims = [d for d in source[var].dims if d not in ["x", "y", "lat", "lon", "node", "latitude", "longitude"]]
-                # For this mock, we just take the first spatial point and broadcast to target spatial structure
-                spatial_dims = [d for d in source[var].dims if d not in preserved_dims]
-                indexers = {d: 0 for d in spatial_dims if d in source[var].dims}
-                data = source[var].isel(indexers)
-                # Now broadcast preserved dims with target
-                res[var] = data.broadcast_like(target)
-            return res
+    # Mock Regridder to return the source data mapped to target points
+    def mock_apply(source):
+        # Target was passed to Regridder(source, target, ...)
+        target = xregrid.Regridder.call_args[0][1]
+        # Create a result dataset with target's structure
+        res = xr.Dataset(coords=target.coords)
+        for var in source.data_vars:
+            if not source[var].dims:
+                res[var] = source[var]
+                continue
+            # Mock: mapping source to target.
+            # Preserves non-spatial dimensions of source.
+            preserved_dims = [d for d in source[var].dims if d not in ["x", "y", "lat", "lon", "node", "latitude", "longitude"]]
+            # For this mock, we just take the first spatial point and broadcast to target spatial structure
+            spatial_dims = [d for d in source[var].dims if d not in preserved_dims]
+            indexers = {d: 0 for d in spatial_dims if d in source[var].dims}
+            data = source[var].isel(indexers)
+            # Now broadcast preserved dims with target
+            res[var] = data.broadcast_like(target)
+        return res
 
-        mock_regridder.side_effect = mock_apply
+    mock_regridder.side_effect = mock_apply
     """Verify pair follows Aero Protocol: NumPy and Dask consistency."""
-    # Create model data (1D points for easy mocking)
-    nx = 10
+    # Create model data
+    nx, ny = 10, 5
     lon = np.linspace(0, 359, nx)
-    lat = np.linspace(-90, 90, nx)
-    data = np.random.rand(nx)
+    lat = np.linspace(-90, 90, ny)
+    lons, lats = np.meshgrid(lon, lat)
+    data = np.random.rand(ny, nx)
     model = xr.Dataset(
-        {"temp": (("time", "x"), data[None, ...])},
-        coords={"time": [pd.to_datetime("2023-01-01")], "latitude": (("x",), lat), "longitude": (("x",), lon)},
+        {"temp": (("time", "y", "x"), data[None, ...])},
+        coords={"time": [pd.to_datetime("2023-01-01")], "latitude": (("y", "x"), lats), "longitude": (("y", "x"), lons)},
     )
 
     # Create obs data (DataFrame)
@@ -163,30 +162,30 @@ def test_ugrid_detection():
 
 
 def test_ugrid_pairing_smoke(monkeypatch):
-    if not has_xregrid:
-        mock_xregrid = MagicMock()
-        monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
-        monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
-        import xregrid
+    # Always mock for consistency in protocol testing
+    mock_xregrid = MagicMock()
+    monkeypatch.setitem(sys.modules, "xregrid", mock_xregrid)
+    monkeypatch.setitem(sys.modules, "esmpy", MagicMock())
+    import xregrid
 
-        mock_regridder = MagicMock()
-        xregrid.Regridder.return_value = mock_regridder
+    mock_regridder = MagicMock()
+    xregrid.Regridder.return_value = mock_regridder
 
-        def mock_apply(source):
-            target = xregrid.Regridder.call_args[0][1]
-            res = xr.Dataset(coords=target.coords)
-            for var in source.data_vars:
-                if not source[var].dims:
-                    res[var] = source[var]
-                    continue
-                preserved_dims = [d for d in source[var].dims if d not in ["x", "y", "lat", "lon", "node", "latitude", "longitude"]]
-                spatial_dims = [d for d in source[var].dims if d not in preserved_dims]
-                indexers = {d: 0 for d in spatial_dims if d in source[var].dims}
-                data = source[var].isel(indexers)
-                res[var] = data.broadcast_like(target)
-            return res
+    def mock_apply(source):
+        target = xregrid.Regridder.call_args[0][1]
+        res = xr.Dataset(coords=target.coords)
+        for var in source.data_vars:
+            if not source[var].dims:
+                res[var] = source[var]
+                continue
+            preserved_dims = [d for d in source[var].dims if d not in ["x", "y", "lat", "lon", "node", "latitude", "longitude"]]
+            spatial_dims = [d for d in source[var].dims if d not in preserved_dims]
+            indexers = {d: 0 for d in spatial_dims if d in source[var].dims}
+            data = source[var].isel(indexers)
+            res[var] = data.broadcast_like(target)
+        return res
 
-        mock_regridder.side_effect = mock_apply
+    mock_regridder.side_effect = mock_apply
     """Smoke test for UGRID to DataFrame pairing."""
     # Create a minimal UGRID-like dataset
     n_nodes = 100
