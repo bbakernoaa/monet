@@ -124,7 +124,9 @@ def _pair_xarray(
     paired.attrs["history"] = history + f"\n{curr_time} > Paired with observations via monet.pair"
 
     if merge:
-        return xr.merge([obs, paired])
+        # Use compat='override' to prefer obs coordinates if there are slight mismatches
+        # (e.g. from regridding precision issues)
+        return xr.merge([obs, paired], compat="override")
     else:
         return paired
 
