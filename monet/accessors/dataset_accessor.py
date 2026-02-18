@@ -103,10 +103,10 @@ class MONETAccessorDataset(BaseAccessor):
         """Deprecated: Remap DataArray using xESMF."""
         warnings.warn("_remap_xesmf_dataarray is deprecated.", DeprecationWarning, stacklevel=2)
         # We can implement this via resample
-        from ..util import resample
+        from ..util.resample import resample
 
         target = self._obj
-        out = resample.resample(dataarray, target, method=method, **kwargs)
+        out = resample(dataarray, target, method=method, **kwargs)
         if out.name in self._obj.variables:
             out.name = out.name + "_y"
         self._obj[out.name] = out
@@ -228,7 +228,7 @@ class MONETAccessorDataset(BaseAccessor):
         if not has_xregrid and not has_monet_regrid:
             raise ImportError("xregrid (with esmpy) or monet-regrid is required for this functionality")
 
-        from ..util import resample
+        from ..util.resample import resample
 
         # Check for Dask to replicate original inconsistent API behavior
         # Original behavior:
@@ -246,7 +246,7 @@ class MONETAccessorDataset(BaseAccessor):
             source = data
             target = self._obj
 
-        out = resample.resample(source, target, method=method, **kwargs)
+        out = resample(source, target, method=method, **kwargs)
 
         # Update history
         curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -365,7 +365,11 @@ class MONETAccessorDataset(BaseAccessor):
             raise ValueError("Could not detect latitude and longitude coordinates.")
 
         # Determine target points along detected longitude range
-        longitude = linspace(float(lon_da.min()), float(lon_da.max()), lon_da.size)
+        # Note: We compute bounds eagerly for linspace
+        lon_min = lon_da.min().values.item() if hasattr(lon_da.data, "chunks") else lon_da.min().item()
+        lon_max = lon_da.max().values.item() if hasattr(lon_da.data, "chunks") else lon_da.max().item()
+
+        longitude = linspace(lon_min, lon_max, lon_da.size)
         latitude = ones(longitude.shape) * asarray(lat)
 
         # Create target grid
@@ -414,7 +418,11 @@ class MONETAccessorDataset(BaseAccessor):
             raise ValueError("Could not detect latitude and longitude coordinates.")
 
         # Determine target points along detected latitude range
-        latitude = linspace(float(lat_da.min()), float(lat_da.max()), lat_da.size)
+        # Note: We compute bounds eagerly for linspace
+        lat_min = lat_da.min().values.item() if hasattr(lat_da.data, "chunks") else lat_da.min().item()
+        lat_max = lat_da.max().values.item() if hasattr(lat_da.data, "chunks") else lat_da.max().item()
+
+        latitude = linspace(lat_min, lat_max, lat_da.size)
         longitude = ones(latitude.shape) * asarray(lon)
 
         # Create target grid
@@ -495,7 +503,6 @@ class MONETAccessorDataset(BaseAccessor):
         dset.attrs["history"] = history + f"\n{curr_time} > Vertically stratified entire Dataset"
 
         return dset
-
 
     def pair(self, obs, **kwargs):
         """Pair this Dataset with observation data.

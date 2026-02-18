@@ -274,27 +274,67 @@ def combine_da_to_da(
 ) -> xr.Dataset | xr.DataArray:
     """Combine gridded data with point observation data in xarray format.
 
-    Note: This is a backward compatibility wrapper for `monet.pair`.
+    Note: This is a backward compatibility wrapper. It restores the old behavior
+    of expanding 1D coordinates to a 2D meshgrid for compatibility with legacy tests.
+    For point-to-point pairing, use `monet.pair`.
 
     Parameters
     ----------
     source : xarray.DataArray or xarray.Dataset
         Gridded data to interpolate from.
     target : xarray.DataArray or xarray.Dataset
-        Point observation data.
+        Target grid or point observation data.
     merge : bool, default True
         Whether to merge.
     interp_time : bool, default False
         Whether to interpolate in time.
     **kwargs : dict
-        Additional arguments passed to `pair`.
+        Additional arguments passed to `resample`.
 
     Returns
     -------
     xarray.Dataset or xarray.DataArray
         Combined Dataset.
     """
-    return pair(source, target, merge=merge, interp_time=interp_time, **kwargs)  # type: ignore
+    from .interp_util import lonlat_to_dataset
+    from .resample import resample
+
+    # Check for legacy meshgrid expansion (if lat/lon are 1D and share a dimension)
+    target_grid = target
+    try:
+        # Detect coordinates using accessor if available, or fallback to names
+        if hasattr(target, "monet"):
+            lon = target.monet.lon
+            lat = target.monet.lat
+        else:
+            # Fallback to common names
+            lat_names = ["latitude", "lat", "y"]
+            lon_names = ["longitude", "lon", "x"]
+            lat = next((target[c] for c in lat_names if c in target.coords), None)
+            lon = next((target[c] for c in lon_names if c in target.coords), None)
+
+        if lat is not None and lon is not None:
+            if lat.ndim == 1 and lon.ndim == 1 and lat.dims == lon.dims:
+                # Legacy behavior: expand to meshgrid
+                target_grid = lonlat_to_dataset(lon.values, lat.values)
+                # Carry over time if present in target
+                if "time" in target.coords:
+                    target_grid = target_grid.assign_coords(time=target.time)
+    except Exception:
+        target_grid = target
+
+    # Use resample directly instead of pair to avoid point-mode logic in pair
+    paired = resample(source, target_grid, **kwargs)
+
+    if interp_time and "time" in target.coords:
+        paired = paired.interp(time=target.time)
+
+    if merge:
+        # Note: Merging a expanded grid with the original trajectory might lead to
+        # unexpected results (broadcasting), but this matches legacy behavior if merge=True was used.
+        return xr.merge([target, paired])
+    else:
+        return paired
 
 
 def _rename_latlon(ds: xr.Dataset) -> xr.Dataset:

@@ -180,12 +180,18 @@ class BaseAccessor:
         mesh_var = BaseAccessor._detect_ugrid(ds)
         if mesh_var:
             topology = ds[mesh_var]
-            if hasattr(topology, "node_coordinates"):
-                node_coords = topology.node_coordinates.split()
+            node_coords_str = topology.attrs.get("node_coordinates", "")
+            if node_coords_str:
+                node_coords = node_coords_str.split()
                 if len(node_coords) >= 2:
-                    return node_coords[1], node_coords[0]  # Usually lon, lat in UGRID attr? Wait.
                     # UGRID spec: node_coordinates is a space separated list of variable names.
-                    # Usually "lon_var lat_var"
+                    # Usually "lon_var lat_var" -> return (lat, lon)
+                    # We look for lat/lon keywords to be sure
+                    c1, c2 = node_coords[0], node_coords[1]
+                    if "lat" in c1.lower() or "y" in c1.lower():
+                        return c1, c2
+                    else:
+                        return c2, c1
 
         # Common latitude/longitude naming patterns, including non-rectilinear grid names
         lat_names = [

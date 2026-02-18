@@ -323,7 +323,7 @@ class MONETAccessorPandas(BaseAccessor):
         if not has_xregrid and not has_monet_regrid:
             raise ImportError("xregrid (with esmpy) or monet-regrid is required for this functionality")
 
-        from ..util import resample
+        from ..util.resample import resample
 
         source_data = self.rename_for_monet(df)
         target_data = self.rename_for_monet(self._obj)
@@ -335,7 +335,7 @@ class MONETAccessorPandas(BaseAccessor):
 
         # Use xregrid to resample
         da_source = source_data_da["monet_fake_index"]
-        res = resample.resample(da_source, target_data_da, method="nearest")
+        res = resample(da_source, target_data_da, method="nearest")
 
         r = res
         r.name = "monet_fake_index"
