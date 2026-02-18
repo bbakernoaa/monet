@@ -85,47 +85,6 @@ class MONETAccessor(BaseAccessor):
 
         return wdl
 
-    def is_land(self, return_xarray: bool = False) -> xr.DataArray | np.ndarray:
-        """Check if points are on land.
-        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
-        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
-
-        Parameters
-        ----------
-        return_xarray : bool, default: False
-            If True, return results as xarray (masked DataArray).
-            Otherwise, return the boolean mask (DataArray or its underlying array).
-
-        Returns
-        -------
-        xarray.DataArray or numpy.ndarray
-            If return_xarray is True, returns a DataArray masked by land.
-            Otherwise, returns a DataArray (if Dask-backed) or numpy.ndarray (if Eager) of booleans.
-        """
-        try:
-            import global_land_mask as glm
-        except ImportError:
-            raise ImportError("Please install global_land_mask from pypi")
-
-        lat = self.lat
-        lon = self.lon
-        if lat is None or lon is None:
-            raise ValueError("Could not detect latitude and longitude coordinates.")
-
-        # Use apply_ufunc to be backend-agnostic (handles Dask automatically if parallelized=True)
-        island = xr.apply_ufunc(
-            glm.is_land,
-            lat,
-            lon,
-            dask="parallelized",
-            output_dtypes=[bool],
-        )
-
-        if return_xarray:
-            return self._obj.where(island)
-        else:
-            return island if hasattr(island.data, "chunks") else island.values
-
     def remap_xesmf(self, data, **kwargs):
         """Deprecated: Remap data using xESMF regridding."""
         warnings.warn(
@@ -148,47 +107,6 @@ class MONETAccessor(BaseAccessor):
             stacklevel=2,
         )
         return self.remap(data, method="nearest", **kwargs)
-
-    def is_ocean(self, return_xarray: bool = False) -> xr.DataArray | np.ndarray:
-        """Check if points are on ocean.
-        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
-        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
-
-        Parameters
-        ----------
-        return_xarray : bool, default: False
-            If True, return results as xarray (masked DataArray).
-            Otherwise, return the boolean mask (DataArray or its underlying array).
-
-        Returns
-        -------
-        xarray.DataArray or numpy.ndarray
-            If return_xarray is True, returns a DataArray masked by ocean.
-            Otherwise, returns a DataArray (if Dask-backed) or numpy.ndarray (if Eager) of booleans.
-        """
-        try:
-            import global_land_mask as glm
-        except ImportError:
-            raise ImportError("Please install global_land_mask from pypi")
-
-        lat = self.lat
-        lon = self.lon
-        if lat is None or lon is None:
-            raise ValueError("Could not detect latitude and longitude coordinates.")
-
-        # Use apply_ufunc to be backend-agnostic
-        isocean = xr.apply_ufunc(
-            glm.is_ocean,
-            lat,
-            lon,
-            dask="parallelized",
-            output_dtypes=[bool],
-        )
-
-        if return_xarray:
-            return self._obj.where(isocean)
-        else:
-            return isocean if hasattr(isocean.data, "chunks") else isocean.values
 
     def cftime_to_datetime64(self, name: str | None = None) -> xr.DataArray:
         """Convert cftime coordinates to numpy datetime64.

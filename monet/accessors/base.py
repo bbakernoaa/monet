@@ -1,5 +1,7 @@
 """Base accessor implementation for MONET"""
 
+import datetime
+
 import xarray as xr
 
 try:
@@ -656,8 +658,6 @@ class BaseAccessor:
         xarray.DataArray or xarray.Dataset
             The standardized object.
         """
-        import datetime
-
         obj = self._obj.copy()
 
         # Wrap longitudes if present
@@ -681,3 +681,90 @@ class BaseAccessor:
         obj.attrs["history"] = history + f"\n{curr_time} > Standardized via monet.standardize"
 
         return obj
+
+    def is_land(self, return_xarray: bool = False) -> xr.DataArray | xr.Dataset:
+        """Check if points are on land.
+        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
+        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
+
+        Parameters
+        ----------
+        return_xarray : bool, default: False
+            If True, return results as xarray (masked object).
+            Otherwise, return the boolean mask as a DataArray.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+            If return_xarray is True, returns the object masked by land.
+            Otherwise, returns a boolean DataArray mask.
+        """
+        return self._mask_land_ocean(mask_type="land", return_xarray=return_xarray)
+
+    def is_ocean(self, return_xarray: bool = False) -> xr.DataArray | xr.Dataset:
+        """Check if points are on ocean.
+        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
+        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
+
+        Parameters
+        ----------
+        return_xarray : bool, default: False
+            If True, return results as xarray (masked object).
+            Otherwise, return the boolean mask as a DataArray.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+            If return_xarray is True, returns the object masked by ocean.
+            Otherwise, returns a boolean DataArray mask.
+        """
+        return self._mask_land_ocean(mask_type="ocean", return_xarray=return_xarray)
+
+    def _mask_land_ocean(self, mask_type: str = "land", return_xarray: bool = False) -> xr.DataArray | xr.Dataset:
+        """Helper method to compute land/ocean mask.
+
+        Parameters
+        ----------
+        mask_type : str, default: 'land'
+            Type of mask to compute: 'land' or 'ocean'.
+        return_xarray : bool, default: False
+            If True, return results as xarray (masked object).
+            Otherwise, return the boolean mask as a DataArray.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+        """
+        try:
+            import global_land_mask as glm
+        except ImportError:
+            raise ImportError("Please install global_land_mask from pypi")
+
+        lat = self.lat
+        lon = self.lon
+        if lat is None or lon is None:
+            raise ValueError("Could not detect latitude and longitude coordinates.")
+
+        func = glm.is_land if mask_type == "land" else glm.is_ocean
+
+        # Use apply_ufunc to be backend-agnostic (handles Dask automatically if parallelized=True)
+        mask = xr.apply_ufunc(
+            func,
+            lat,
+            lon,
+            dask="parallelized",
+            output_dtypes=[bool],
+        )
+        mask.name = f"is_{mask_type}"
+
+        if return_xarray:
+            res = self._obj.where(mask)
+        else:
+            res = mask
+
+        # Update history for provenance
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = res.attrs.get("history", "")
+        res.attrs["history"] = history + f"\n{curr_time} > Computed {mask_type} mask via monet.is_{mask_type}"
+
+        return res

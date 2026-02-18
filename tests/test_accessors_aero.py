@@ -147,3 +147,54 @@ def test_compare_dask():
 
     rmse = da1.monet.compare(da2, stat="rmse", plot=False)
     assert hasattr(rmse.data, "chunks")
+
+
+def test_is_land_ocean_advanced_lazy():
+    """Advanced verification of is_land and is_ocean logic with Dask backends."""
+    import dask.array as da
+
+    # 1. Setup Eager Data
+    lon = np.linspace(-180, 180, 10)
+    lat = np.linspace(-90, 90, 10)
+
+    data = np.random.rand(10, 10)
+
+    ds_eager = xr.Dataset({"test": (("lat", "lon"), data)}, coords={"lat": lat, "lon": lon})
+    # Add attributes to test provenance
+    ds_eager.attrs["history"] = "Original"
+
+    # 2. Setup Lazy Data
+    # To strictly verify laziness of coordinates, we assign them as dask-backed DataArrays.
+    ds_lazy = ds_eager.copy()
+    ds_lazy = ds_lazy.assign(
+        lat_lazy=xr.DataArray(da.from_array(lat, chunks=5), dims="lat", attrs={"standard_name": "latitude"}),
+        lon_lazy=xr.DataArray(da.from_array(lon, chunks=5), dims="lon", attrs={"standard_name": "longitude"}),
+    )
+    ds_lazy = ds_lazy.drop_vars(["lat", "lon"]).rename({"lat_lazy": "lat", "lon_lazy": "lon"}).set_coords(["lat", "lon"])
+    ds_lazy = ds_lazy.chunk({"lat": 5, "lon": 5})
+
+    # 3. Test is_land Eager
+    land_mask_eager = ds_eager.monet.is_land()
+    assert isinstance(land_mask_eager, xr.DataArray)
+    assert not hasattr(land_mask_eager.data, "chunks")
+    assert "history" in land_mask_eager.attrs
+    assert "Computed land mask" in land_mask_eager.attrs["history"]
+
+    # 4. Test is_land Lazy
+    land_mask_lazy = ds_lazy.monet.is_land()
+    assert isinstance(land_mask_lazy, xr.DataArray)
+    assert hasattr(land_mask_lazy.data, "chunks")
+
+    # 5. Verify results are identical
+    xr.testing.assert_allclose(land_mask_eager, land_mask_lazy.compute())
+
+    # 6. Test is_ocean with return_xarray=True
+    ds_masked_eager = ds_eager.monet.is_ocean(return_xarray=True)
+    ds_masked_lazy = ds_lazy.monet.is_ocean(return_xarray=True)
+
+    assert isinstance(ds_masked_eager, xr.Dataset)
+    assert isinstance(ds_masked_lazy, xr.Dataset)
+    assert hasattr(ds_masked_lazy.test.data, "chunks")
+
+    xr.testing.assert_allclose(ds_masked_eager, ds_masked_lazy.compute())
+    assert "Computed ocean mask" in ds_masked_eager.attrs["history"]
