@@ -496,32 +496,6 @@ class MONETAccessorDataset(BaseAccessor):
 
         return dset
 
-    def window(self, lat_min, lon_min, lat_max, lon_max):
-        """Extract a spatial window from the data.
-
-        Parameters
-        ----------
-        lat_min : float
-            Minimum latitude.
-        lon_min : float
-            Minimum longitude.
-        lat_max : float
-            Maximum latitude.
-        lon_max : float
-            Maximum longitude.
-
-        Returns
-        -------
-        xarray.Dataset
-            Windowed dataset.
-        """
-        # This implementation relied on pyresample
-        # Since we removed pyresample, we should implement a simple fallback or raise error
-        # A simple window selection using xarray.sel or where could work if lat/lon are coords
-        # But if they are 2D arrays, it is more complex.
-        # Given "xregrid" doesn't seem to expose simple windowing logic, we can try using standard xarray logic if possible
-        # or just raise NotImplementedError for now as it wasn't explicitly requested to be ported (only regridding).
-        raise NotImplementedError("Window functionality is unavailable without pyresample")
 
     def pair(self, obs, **kwargs):
         """Pair this Dataset with observation data.

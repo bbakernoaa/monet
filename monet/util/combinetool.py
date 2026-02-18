@@ -75,13 +75,7 @@ def _pair_xarray(
     **kwargs: t.Any,
 ) -> xr.Dataset | xr.DataArray:
     """Pair xarray model with xarray observations."""
-    from ..monet_accessor import _dataset_to_monet
-
-    # Standardize
-    model = _dataset_to_monet(model)
-    obs = _dataset_to_monet(obs)
-
-    # Use remap via accessor
+    # Use remap via accessor - convention aware
     paired = obs.monet.remap(model, method=method, **kwargs)
 
     if interp_time:
@@ -118,20 +112,18 @@ def _pair_dataframe(
     **kwargs: t.Any,
 ) -> pd.DataFrame | t.Any:
     """Pair xarray model with pandas or dask DataFrame observations."""
-    from ..monet_accessor import _dataset_to_monet
+    # Detect spatial columns in DataFrame
+    lat_names = ["latitude", "lat", "Latitude", "Lat", "LAT"]
+    lon_names = ["longitude", "lon", "Longitude", "Lon", "LON"]
+    lat_col = next((c for c in lat_names if c in obs.columns), None)
+    lon_col = next((c for c in lon_names if c in obs.columns), None)
 
-    # Ensure model is standardized
-    model = _dataset_to_monet(model)
-
-    # Standardize DataFrame columns if needed
-    if "lat" in obs.columns:
-        obs = obs.rename(columns={"lat": "latitude", "lon": "longitude"})
-    elif "Lat" in obs.columns:
-        obs = obs.rename(columns={"Lat": "latitude", "Lon": "longitude"})
+    if lat_col is None or lon_col is None:
+        raise AttributeError("Could not detect latitude and longitude columns in observation DataFrame.")
 
     # Extract unique locations to minimize remapping work
     # siteid is expected. If not present, we use lat/lon.
-    loc_cols = ["latitude", "longitude"]
+    loc_cols = [lat_col, lon_col]
     if "siteid" in obs.columns:
         loc_cols.append("siteid")
 
@@ -157,6 +149,9 @@ def _pair_dataframe(
     if "siteid" in unique_locs_p.columns:
         # Add siteid as a coordinate so it is preserved during remap and conversion back to DF
         point_ds = point_ds.assign_coords(siteid=(("x"), unique_locs_p.siteid.values))
+
+    # Ensure model standard names match point_ds for xregrid if needed,
+    # but remap is already convention-aware.
 
     # Remap model to points
     paired_da = point_ds.monet.remap(model, method=method, **kwargs)
