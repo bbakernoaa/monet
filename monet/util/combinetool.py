@@ -92,7 +92,8 @@ def _pair_xarray(
             model = model.interp(time=obs.time)
         else:
             # If not interpolating, use nearest neighbor time alignment
-            model = model.reindex(time=obs.time, method="nearest")
+            # Use .values to avoid issues if obs.time is part of a MultiIndex (fixes CI failure)
+            model = model.reindex(time=obs.time.values, method="nearest")
 
         paired = obs.monet.remap(model, method=method, **kwargs)
     elif not is_trajectory and "time" in obs.dims:
