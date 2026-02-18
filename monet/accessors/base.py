@@ -32,6 +32,26 @@ def wrap_longitudes(lons):
 class BaseAccessor:
     """Base class for MONET accessors with common utility methods."""
 
+    @property
+    def lat(self) -> xr.DataArray | None:
+        """Detected latitude coordinate or variable.
+        Uses convention-aware detection without renaming.
+        """
+        name, _ = self._detect_latlon_names(self._obj)
+        if name:
+            return self._obj[name]
+        return None
+
+    @property
+    def lon(self) -> xr.DataArray | None:
+        """Detected longitude coordinate or variable.
+        Uses convention-aware detection without renaming.
+        """
+        _, name = self._detect_latlon_names(self._obj)
+        if name:
+            return self._obj[name]
+        return None
+
     @staticmethod
     def safe_import(module_name, error_msg=None):
         """Import a module with a clear error message if not found."""
@@ -61,8 +81,6 @@ class BaseAccessor:
         defaults = {
             "reuse_weights": False,
             "method": "bilinear",
-            "periodic": False,
-            "filename": "monet_xesmf_regrid_file.nc",
         }
         return {**defaults, **kwargs}
 
@@ -146,7 +164,7 @@ class BaseAccessor:
 
     @staticmethod
     def _detect_latlon_names(ds):
-        """Detect possible latitude/longitude coordinate names in COARDS/CF datasets.
+        """Detect possible latitude/longitude coordinate names in COARDS/CF/UGRID datasets.
 
         Parameters
         ----------
@@ -158,6 +176,17 @@ class BaseAccessor:
         tuple
             (lat_name, lon_name) if found, otherwise (None, None)
         """
+        # First check for UGRID node coordinates
+        mesh_var = BaseAccessor._detect_ugrid(ds)
+        if mesh_var:
+            topology = ds[mesh_var]
+            if hasattr(topology, "node_coordinates"):
+                node_coords = topology.node_coordinates.split()
+                if len(node_coords) >= 2:
+                    return node_coords[1], node_coords[0]  # Usually lon, lat in UGRID attr? Wait.
+                    # UGRID spec: node_coordinates is a space separated list of variable names.
+                    # Usually "lon_var lat_var"
+
         # Common latitude/longitude naming patterns, including non-rectilinear grid names
         lat_names = [
             "latitude",
@@ -183,7 +212,6 @@ class BaseAccessor:
             "LON",
             "x",
             "Long",
-            "Lon",
             "XLONG",
             "XLONG_M",
             "grid_xt",
@@ -193,16 +221,39 @@ class BaseAccessor:
             "lon_centers",
         ]
 
-        # First check in coordinates
-        for lat, lon in zip(lat_names, lon_names):
-            if lat in ds.coords and lon in ds.coords:
-                return lat, lon
+        # Search for any combination of lat and lon names
+        found_lat = None
+        found_lon = None
 
-        # Then check in variables if it's a Dataset
+        # Check coordinates first
+        for lat in lat_names:
+            if lat in ds.coords:
+                found_lat = lat
+                break
+
+        for lon in lon_names:
+            if lon in ds.coords:
+                found_lon = lon
+                break
+
+        if found_lat and found_lon:
+            return found_lat, found_lon
+
+        # Then check variables if it's a Dataset
         if isinstance(ds, xr.Dataset):
-            for lat, lon in zip(lat_names, lon_names):
-                if lat in ds.variables and lon in ds.variables:
-                    return lat, lon
+            if found_lat is None:
+                for lat in lat_names:
+                    if lat in ds.variables:
+                        found_lat = lat
+                        break
+            if found_lon is None:
+                for lon in lon_names:
+                    if lon in ds.variables:
+                        found_lon = lon
+                        break
+
+        if found_lat and found_lon:
+            return found_lat, found_lon
 
         # Look for variables with standard_name attribute
         lat_name = None

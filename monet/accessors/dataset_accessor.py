@@ -4,13 +4,11 @@ import datetime
 import typing as t
 import warnings
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
 from .base import BaseAccessor, has_monet_regrid, has_xregrid
-
-has_pyresample = False
-has_xesmf = False
 
 
 @xr.register_dataset_accessor("monet")
@@ -25,58 +23,91 @@ class MONETAccessorDataset(BaseAccessor):
         """
         self._obj = xray_obj
 
-    def is_land(self, return_xarray=False):
+    def is_land(self, return_xarray: bool = False) -> xr.Dataset | xr.DataArray | np.ndarray:
         """Check if points are on land.
+        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
+        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
 
         Parameters
         ----------
         return_xarray : bool, default: False
-            If True, return results as xarray. Otherwise, return numpy array.
+            If True, return results as xarray (masked Dataset).
+            Otherwise, return the boolean mask (DataArray or its underlying array).
 
         Returns
         -------
-        xarray.DataArray or numpy.ndarray
-            Boolean array where True indicates land.
+        xarray.Dataset, xarray.DataArray, or numpy.ndarray
+            If return_xarray is True, returns a Dataset masked by land.
+            Otherwise, returns a DataArray (if Dask-backed) or numpy.ndarray (if Eager) of booleans.
         """
         try:
             import global_land_mask as glm
         except ImportError:
             raise ImportError("Please install global_land_mask from pypi")
 
-        da = self._dataset_to_monet(self._obj)
-        island = glm.is_land(da.latitude.values, da.longitude.values)
-        if return_xarray:
-            return da.where(island)
-        else:
-            return island
+        lat = self.lat
+        lon = self.lon
+        if lat is None or lon is None:
+            raise ValueError("Could not detect latitude and longitude coordinates.")
 
-    def is_ocean(self, return_xarray=False):
+        # Use apply_ufunc to be backend-agnostic (handles Dask automatically if parallelized=True)
+        island = xr.apply_ufunc(
+            glm.is_land,
+            lat,
+            lon,
+            dask="parallelized",
+            output_dtypes=[bool],
+        )
+
+        if return_xarray:
+            return self._obj.where(island)
+        else:
+            return island if hasattr(island.data, "chunks") else island.values
+
+    def is_ocean(self, return_xarray: bool = False) -> xr.Dataset | xr.DataArray | np.ndarray:
         """Check if points are on ocean.
+        Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
+        Convention-aware: works with CF/COARDS and UGRID without forced renaming.
 
         Parameters
         ----------
         return_xarray : bool, default: False
-            If True, return results as xarray. Otherwise, return numpy array.
+            If True, return results as xarray (masked Dataset).
+            Otherwise, return the boolean mask (DataArray or its underlying array).
 
         Returns
         -------
-        xarray.DataArray or numpy.ndarray
-            Boolean array where True indicates ocean.
+        xarray.Dataset, xarray.DataArray, or numpy.ndarray
+            If return_xarray is True, returns a Dataset masked by ocean.
+            Otherwise, returns a DataArray (if Dask-backed) or numpy.ndarray (if Eager) of booleans.
         """
         try:
             import global_land_mask as glm
         except ImportError:
             raise ImportError("Please install global_land_mask from pypi")
 
-        da = self._dataset_to_monet(self._obj)
-        isocean = glm.is_ocean(da.latitude.values, da.longitude.values)
-        if return_xarray:
-            return da.where(isocean)
-        else:
-            return isocean
+        lat = self.lat
+        lon = self.lon
+        if lat is None or lon is None:
+            raise ValueError("Could not detect latitude and longitude coordinates.")
 
-    def cftime_to_datetime64(self, name=None):
+        # Use apply_ufunc to be backend-agnostic
+        isocean = xr.apply_ufunc(
+            glm.is_ocean,
+            lat,
+            lon,
+            dask="parallelized",
+            output_dtypes=[bool],
+        )
+
+        if return_xarray:
+            return self._obj.where(isocean)
+        else:
+            return isocean if hasattr(isocean.data, "chunks") else isocean.values
+
+    def cftime_to_datetime64(self, name: str | None = None) -> xr.Dataset:
         """Convert cftime coordinates to numpy datetime64.
+        Preserves Dask laziness if the time coordinate is Dask-backed.
 
         Parameters
         ----------
@@ -90,70 +121,31 @@ class MONETAccessorDataset(BaseAccessor):
         """
         from numpy import vectorize
 
-        ds = self._obj
+        ds = self._obj.copy()
 
         def cf_to_dt64(x):
-            return pd.to_datetime(x.strftime("%Y-%m-%d %H:%M:%S"))
+            try:
+                return pd.to_datetime(x.strftime("%Y-%m-%d %H:%M:%S"))
+            except AttributeError:
+                return x
 
         if name is None:  # assume 'time' is the column name to transform
             name = "time"
-        if isinstance(ds[name].to_index(), xr.CFTimeIndex):
-            ds[name] = xr.apply_ufunc(vectorize(cf_to_dt64), ds[name])
+
+        if name in ds.coords and isinstance(ds[name].to_index(), xr.CFTimeIndex):
+            ds[name] = xr.apply_ufunc(
+                vectorize(cf_to_dt64),
+                ds[name],
+                dask="parallelized",
+                output_dtypes=["datetime64[ns]"],
+            )
+
+            # Update history
+            curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            history = ds.attrs.get("history", "")
+            ds.attrs["history"] = history + f"\n{curr_time} > Converted {name} from cftime to datetime64"
+
         return ds
-
-    def remap_xesmf(self, data, parallel=True, n_workers=None, **kwargs):
-        """Deprecated: Remap data using xESMF regridding."""
-        warnings.warn(
-            "remap_xesmf is deprecated and will be removed in a future version. "
-            "Please use remap(data, method='xesmf') or remap(data, method='conservative') instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Handle method argument from kwargs
-        if "method" in kwargs:
-            kwargs["xesmf_method"] = kwargs.pop("method")
-
-        return self.remap(data, method="xesmf", **kwargs)
-
-    def remap_nearest_parallel(self, data, radius_of_influence=1e6, n_processes=None, **kwargs):
-        """Deprecated: Remap data using nearest neighbor interpolation with parallel processing."""
-        warnings.warn(
-            "remap_nearest_parallel is deprecated. xregrid uses dask for parallelization.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.remap(data, method="nearest", **kwargs)
-
-    def combine_point_esmf(self, point_df, method="bilinear", **kwargs):
-        """Combine this dataset with point data using ESMF LocStream.
-
-        Deprecated as ESMF dependency is removed.
-        """
-        raise NotImplementedError("This function relies on ESMF which has been removed.")
-
-    def _remap_xesmf_dataset(self, dset, filename="monet_xesmf_regrid_file.nc", **kwargs):
-        """Deprecated: Remap dataset using xESMF."""
-        warnings.warn("_remap_xesmf_dataset is deprecated.", DeprecationWarning, stacklevel=2)
-        return self.remap(dset, method="xesmf", **kwargs)
-
-    def _remap_xesmf_dataarray(
-        self,
-        dataarray,
-        method="bilinear",
-        filename="monet_xesmf_regrid_file.nc",
-        **kwargs,
-    ):
-        """Deprecated: Remap DataArray using xESMF."""
-        warnings.warn("_remap_xesmf_dataarray is deprecated.", DeprecationWarning, stacklevel=2)
-        # We can implement this via resample
-        from ..util import resample
-
-        target = self._obj
-        out = resample.resample(dataarray, target, method=method, **kwargs)
-        if out.name in self._obj.variables:
-            out.name = out.name + "_y"
-        self._obj[out.name] = out
-        return out
 
     def remap(
         self,
@@ -196,24 +188,24 @@ class MONETAccessorDataset(BaseAccessor):
         # Else: data is Source, self is Target.
 
         is_dask = hasattr(self._obj, "chunks") and self._obj.chunks is not None
-        target_shape = data.shape if hasattr(data, "shape") else None
-        source_shape = self._obj.shape if hasattr(self._obj, "shape") else None
+        target_shape = getattr(data, "shape", None)
+        source_shape = getattr(self._obj, "shape", None)
 
         if is_dask and target_shape is not None and target_shape != source_shape:
-            source = self._dataset_to_monet(self._obj)
-            target = self._dataset_to_monet(data)
+            source = self._obj
+            target = data
         else:
-            source = self._dataset_to_monet(data)
-            target = self._dataset_to_monet(self._obj)
+            source = data
+            target = self._obj
 
         out = resample.resample(source, target, method=method, **kwargs)
 
         # Update history
         curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         history = out.attrs.get("history", "")
-        out.attrs["history"] = history + f"\n{curr_time} > Remapped via monet.remap"
+        out.attrs["history"] = history + f"\n{curr_time} > Remapped via monet.remap (method={method})"
 
-        return self._rename_to_monet_latlon(out)
+        return out
 
     def remap_nearest(self, data, radius_of_influence=1e6, **kwargs):
         """Deprecated: Remap data using nearest neighbor interpolation."""
@@ -244,7 +236,14 @@ class MONETAccessorDataset(BaseAccessor):
         """
         raise NotImplementedError("nearest_ij is not yet implemented with xregrid")
 
-    def nearest_latlon(self, lat=None, lon=None, cleanup=True, esmf=False, **kwargs):
+    def nearest_latlon(
+        self,
+        lat: float | t.Sequence[float] | None = None,
+        lon: float | t.Sequence[float] | None = None,
+        cleanup: bool = True,
+        esmf: bool = False,
+        **kwargs: t.Any,
+    ) -> xr.Dataset:
         """Extract data at nearest lat/lon point(s).
 
         Parameters
@@ -268,27 +267,35 @@ class MONETAccessorDataset(BaseAccessor):
         if lat is None or lon is None:
             raise ValueError("Must provide latitude and longitude")
 
-        self._obj = self._rename_latlon(self._obj)
+        ds = self._obj.copy()
 
         from ..util.interp_util import constant_1d_xesmf
         from ..util.resample import resample
 
         target = constant_1d_xesmf(longitude=lon, latitude=lat)
-        output = resample(self._obj, target, method="nearest", **kwargs)
+        output = resample(ds, target, method="nearest", **kwargs)
 
-        return self._rename_latlon(output.squeeze())
+        res = output.squeeze()
 
-    def interp_constant_lat(self, lat=None, lat_name="latitude", lon_name="longitude", **kwargs):
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = res.attrs.get("history", "")
+        res.attrs["history"] = history + f"\n{curr_time} > Extracted nearest lat/lon points"
+
+        return res
+
+    def interp_constant_lat(
+        self,
+        lat: float | None = None,
+        **kwargs: t.Any,
+    ) -> xr.Dataset:
         """Interpolate data to a constant latitude.
+        Convention-aware: supports both CF/COARDS and UGRID.
 
         Parameters
         ----------
         lat : float, optional
             Latitude value to interpolate to.
-        lat_name : str, default: "latitude"
-            Name of the latitude coordinate.
-        lon_name : str, default: "longitude"
-            Name of the longitude coordinate.
         **kwargs : dict
             Additional keyword arguments for interpolation.
 
@@ -299,29 +306,40 @@ class MONETAccessorDataset(BaseAccessor):
         """
         from numpy import asarray, linspace, ones
 
-        try:
-            if lat is None:
-                raise RuntimeError
-        except RuntimeError:
-            print("Must enter lat value")
+        if lat is None:
+            raise ValueError("Must provide a latitude value ('lat')")
 
-        d1 = self._dataset_to_monet(self._obj, lat_name=lat_name, lon_name=lon_name)
-        longitude = linspace(d1.longitude.min(), d1.longitude.max(), len(d1.x))
+        ds = self._obj.copy()
+        lat_da = self.lat
+        lon_da = self.lon
+
+        if lat_da is None or lon_da is None:
+            raise ValueError("Could not detect latitude and longitude coordinates.")
+
+        # Determine target points along detected longitude range
+        longitude = linspace(float(lon_da.min()), float(lon_da.max()), lon_da.size)
         latitude = ones(longitude.shape) * asarray(lat)
 
         # Create target grid
-        from ..util.interp_util import constant_1d_xesmf
+        from ..util.interp_util import points_to_dataset
 
-        target = constant_1d_xesmf(latitude=latitude, longitude=longitude)
+        target = points_to_dataset(latitude=latitude, longitude=longitude)
 
         # Use new regridding
         from ..util.resample import resample
 
-        out = resample(self._obj, target, **kwargs)
-        return self._rename_latlon(out)
+        out = resample(ds, target, **kwargs)
 
-    def interp_constant_lon(self, lon=None, **kwargs):
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = out.attrs.get("history", "")
+        out.attrs["history"] = history + f"\n{curr_time} > Interpolated to constant latitude: {lat}"
+
+        return out
+
+    def interp_constant_lon(self, lon: float | None = None, **kwargs: t.Any) -> xr.Dataset:
         """Interpolate data to a constant longitude.
+        Convention-aware: supports both CF/COARDS and UGRID.
 
         Parameters
         ----------
@@ -337,26 +355,36 @@ class MONETAccessorDataset(BaseAccessor):
         """
         from numpy import asarray, linspace, ones
 
-        try:
-            if lon is None:
-                raise RuntimeError
-        except RuntimeError:
-            print("Must enter lon value")
+        if lon is None:
+            raise ValueError("Must provide a longitude value ('lon')")
 
-        d1 = self._dataset_to_monet(self._obj)
-        latitude = linspace(d1.latitude.min(), d1.latitude.max(), len(d1.y))
+        ds = self._obj.copy()
+        lat_da = self.lat
+        lon_da = self.lon
+
+        if lat_da is None or lon_da is None:
+            raise ValueError("Could not detect latitude and longitude coordinates.")
+
+        # Determine target points along detected latitude range
+        latitude = linspace(float(lat_da.min()), float(lat_da.max()), lat_da.size)
         longitude = ones(latitude.shape) * asarray(lon)
 
         # Create target grid
-        from ..util.interp_util import constant_1d_xesmf
+        from ..util.interp_util import points_to_dataset
 
-        target = constant_1d_xesmf(latitude=latitude, longitude=longitude)
+        target = points_to_dataset(latitude=latitude, longitude=longitude)
 
         # Use new regridding
         from ..util.resample import resample
 
-        out = resample(self._obj, target, **kwargs)
-        return self._rename_latlon(out)
+        out = resample(ds, target, **kwargs)
+
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = out.attrs.get("history", "")
+        out.attrs["history"] = history + f"\n{curr_time} > Interpolated to constant longitude: {lon}"
+
+        return out
 
     def stratify(
         self,
@@ -461,7 +489,7 @@ class MONETAccessorDataset(BaseAccessor):
 
         return pair(self._obj, obs, **kwargs)
 
-    def combine_point(self, data, suffix=None, pyresample=True, **kwargs):
+    def combine_point(self, data, suffix=None, **kwargs):
         """Combine point data with this Dataset.
 
         Note: This is a backward compatibility wrapper for `pair`.
@@ -472,8 +500,6 @@ class MONETAccessorDataset(BaseAccessor):
             Point data to combine.
         suffix : str, optional
             Suffix to add to variable names.
-        pyresample : bool, default: True
-            Deprecated flag.
         **kwargs : dict
             Additional keyword arguments for regridding.
 
@@ -484,48 +510,64 @@ class MONETAccessorDataset(BaseAccessor):
         """
         return self.pair(data, suffix=suffix, **kwargs)
 
-    def wrap_longitudes(self, lon_name="longitude"):
+    def wrap_longitudes(self, lon_name: str | None = None) -> xr.Dataset:
         """Wrap longitude values to [-180, 180).
+        Convention-aware: auto-detects longitude if lon_name is None.
 
         Parameters
         ----------
-        lon_name : str, default: "longitude"
-            Name of the longitude coordinate.
+        lon_name : str, optional
+            Name of the longitude coordinate. If None, auto-detects.
 
         Returns
         -------
         xarray.Dataset
             Dataset with wrapped longitudes.
         """
-        dset = self._obj
+        if lon_name is None:
+            _, lon_name = self._detect_latlon_names(self._obj)
+            if lon_name is None:
+                raise ValueError("Could not detect longitude coordinate.")
+
+        dset = self._obj.copy()
         dset[lon_name] = (dset[lon_name] + 180) % 360 - 180
+
+        # Update history for provenance
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = dset.attrs.get("history", "")
+        dset.attrs["history"] = history + f"\n{curr_time} > Wrapped longitudes ({lon_name}) via monet.wrap_longitudes"
+
         return dset
 
-    def tidy(self, lon_name="longitude"):
+    def tidy(self, lon_name: str | None = None) -> xr.Dataset:
         """Apply tidying operations to the data.
+        Wraps longitudes and sorts by longitude.
+        Convention-aware: auto-detects longitude if lon_name is None.
 
         Parameters
         ----------
-        lon_name : str, default: "longitude"
-            Name of the longitude coordinate.
+        lon_name : str, optional
+            Name of the longitude coordinate. If None, auto-detects.
 
         Returns
         -------
         xarray.Dataset
             Tidied dataset.
         """
-        d = self._obj
-        wd = d.monet.wrap_longitudes(lon_name=lon_name)
+        if lon_name is None:
+            _, lon_name = self._detect_latlon_names(self._obj)
+            if lon_name is None:
+                raise ValueError("Could not detect longitude coordinate.")
+
+        wd = self.wrap_longitudes(lon_name=lon_name)
         wdl = wd.sortby(wd[lon_name])
+
+        # Update history for provenance
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = wdl.attrs.get("history", "")
+        wdl.attrs["history"] = history + f"\n{curr_time} > Tidied via monet.tidy (lon_name={lon_name})"
+
         return wdl
-
-    def to_area_def(self, projection="platea", resolution=None, area_id=None):
-        """Deprecated: Convert the dataset's coordinates to a pyresample AreaDefinition."""
-        raise NotImplementedError("This function relies on pyresample which has been removed.")
-
-    def to_swath_def(self):
-        """Deprecated: Convert the dataset's coordinates to a pyresample SwathDefinition."""
-        raise NotImplementedError("This function relies on pyresample which has been removed.")
 
     def quick_facet_time_map(
         self,
