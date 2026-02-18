@@ -301,27 +301,27 @@ def combine_da_to_da(
 
     # Check for legacy meshgrid expansion (if lat/lon are 1D and share a dimension)
     target_grid = target
-    try:
-        # Detect coordinates using accessor if available, or fallback to names
-        if hasattr(target, "monet"):
-            lon = target.monet.lon
-            lat = target.monet.lat
-        else:
-            # Fallback to common names
-            lat_names = ["latitude", "lat", "y"]
-            lon_names = ["longitude", "lon", "x"]
-            lat = next((target[c] for c in lat_names if c in target.coords), None)
-            lon = next((target[c] for c in lon_names if c in target.coords), None)
 
-        if lat is not None and lon is not None:
-            if lat.ndim == 1 and lon.ndim == 1 and lat.dims == lon.dims:
-                # Legacy behavior: expand to meshgrid
-                target_grid = lonlat_to_dataset(lon.values, lat.values)
-                # Carry over time if present in target
-                if "time" in target.coords:
-                    target_grid = target_grid.assign_coords(time=target.time)
-    except Exception:
-        target_grid = target
+    # Direct coordinate detection for expansion to be more robust
+    lat_names = ["latitude", "lat", "Latitude", "y"]
+    lon_names = ["longitude", "lon", "Longitude", "x"]
+
+    lat_da = None
+    for n in lat_names:
+        if n in target.coords:
+            lat_da = target[n]
+            break
+
+    lon_da = None
+    for n in lon_names:
+        if n in target.coords:
+            lon_da = target[n]
+            break
+
+    if lat_da is not None and lon_da is not None:
+        if lat_da.ndim == 1 and lon_da.ndim == 1 and lat_da.dims == lon_da.dims:
+            # Legacy behavior: expand to meshgrid
+            target_grid = lonlat_to_dataset(lon_da.values, lat_da.values)
 
     # Use resample directly instead of pair to avoid point-mode logic in pair
     paired = resample(source, target_grid, **kwargs)
@@ -330,7 +330,7 @@ def combine_da_to_da(
         paired = paired.interp(time=target.time)
 
     if merge:
-        # Note: Merging a expanded grid with the original trajectory might lead to
+        # Note: Merging an expanded grid with the original points might lead to
         # unexpected results (broadcasting), but this matches legacy behavior if merge=True was used.
         return xr.merge([target, paired])
     else:

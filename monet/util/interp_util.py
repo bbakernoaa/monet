@@ -47,7 +47,14 @@ def lonlat_to_dataset(longitude: t.Sequence[float] | np.ndarray, latitude: t.Seq
             lon = lon.flatten()
         lon_2d, lat_2d = meshgrid(lon, lat)
 
-    dset = xr.Dataset(coords={"lon": (["y", "x"], lon_2d), "lat": (["y", "x"], lat_2d)})
+    dset = xr.Dataset(
+        coords={
+            "longitude": (["y", "x"], lon_2d, {"standard_name": "longitude", "units": "degrees_east"}),
+            "latitude": (["y", "x"], lat_2d, {"standard_name": "latitude", "units": "degrees_north"}),
+            "lon": (["y", "x"], lon_2d, {"standard_name": "longitude", "units": "degrees_east"}),
+            "lat": (["y", "x"], lat_2d, {"standard_name": "latitude", "units": "degrees_north"}),
+        }
+    )
     return dset
 
 
