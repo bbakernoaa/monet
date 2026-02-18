@@ -149,6 +149,7 @@ def test_compare_dask():
     assert hasattr(rmse.data, "chunks")
 
 
+@pytest.mark.skipif(not has_glm, reason="global_land_mask not installed")
 def test_is_land_ocean_advanced_lazy():
     """Advanced verification of is_land and is_ocean logic with Dask backends."""
     import dask.array as da

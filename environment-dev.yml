@@ -19,6 +19,7 @@ dependencies:
   - pooch
   - esmpy
   - mpi4py
+  - global-land-mask
   - pip:
       - xregrid @ git+https://github.com/bbakernoaa/xregrid
       - pytspack @ git+https://github.com/noaa-oar-arl/pytspack
