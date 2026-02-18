@@ -126,3 +126,24 @@ def test_ugrid_detection():
     assert land[0]  # approx 40N, 0E is ocean? Wait, let's check
     # Actually global_land_mask uses (lat, lon). (40, 0) is Mediterranean Sea or Spain?
     # Spain is land.
+
+
+def test_standardize():
+    ds = xr.Dataset({"data": (("x",), [1.0])}, coords={"lon": (("x",), [190.0]), "lat": (("x",), [40.0])})
+
+    std = ds.monet.standardize()
+    assert std.lon.values[0] == -170.0
+    assert std.lon.attrs["standard_name"] == "longitude"
+    assert "history" in std.attrs
+
+
+def test_compare_dask():
+    da1 = xr.DataArray([1.0, 2.0], dims="x", coords={"x": [0, 1]}, name="test").chunk(1)
+    da2 = xr.DataArray([1.1, 1.9], dims="x", coords={"x": [0, 1]}, name="test").chunk(1)
+
+    diff = da1.monet.compare(da2, stat="diff", plot=False)
+    assert hasattr(diff.data, "chunks")
+    assert "history" in diff.attrs
+
+    rmse = da1.monet.compare(da2, stat="rmse", plot=False)
+    assert hasattr(rmse.data, "chunks")

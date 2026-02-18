@@ -4,6 +4,7 @@ import datetime
 import typing as t
 import warnings
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -488,6 +489,11 @@ class MONETAccessorDataset(BaseAccessor):
         for vn in loop_vars[1:]:
             dset[vn] = resample_stratify(self._obj[vn], levels, vertical, axis=axis, tension=tension)
 
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = dset.attrs.get("history", "")
+        dset.attrs["history"] = history + f"\n{curr_time} > Vertically stratified entire Dataset"
+
         return dset
 
     def window(self, lat_min, lon_min, lat_max, lon_max):
@@ -618,31 +624,32 @@ class MONETAccessorDataset(BaseAccessor):
 
     def quick_facet_time_map(
         self,
-        var,
-        map_kws=None,
-        projection=None,
-        colorbar=True,
-        figsize=None,
-        cmap=None,
-        vmin=None,
-        vmax=None,
-        norm=None,
-        dpi=150,
-        xlabel=None,
-        ylabel=None,
-        suptitle=None,
-        cbar_label=None,
-        xticks=None,
-        yticks=None,
-        annotations=None,
-        export_path=None,
-        export_formats=None,
-        time_dim="time",
-        ncols=3,
-        **kwargs,
-    ):
+        var: str,
+        map_kws: dict[str, t.Any] | None = None,
+        projection: t.Any | None = None,
+        colorbar: bool = True,
+        figsize: tuple[float, float] | None = None,
+        cmap: str | t.Any | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        norm: t.Any | None = None,
+        dpi: int = 150,
+        xlabel: str | None = None,
+        ylabel: str | None = None,
+        suptitle: str | None = None,
+        cbar_label: str | None = None,
+        xticks: list[float] | None = None,
+        yticks: list[float] | None = None,
+        annotations: list[dict[str, t.Any]] | None = None,
+        export_path: str | None = None,
+        export_formats: list[str] | None = None,
+        time_dim: str = "time",
+        ncols: int = 3,
+        **kwargs: t.Any,
+    ) -> tuple[plt.Figure, np.ndarray]:
         """
         Create a facet grid of map plots for each time slice in a Dataset variable using Cartopy.
+        Convention-aware: supports both CF/COARDS and UGRID.
 
         Parameters
         ----------
@@ -692,9 +699,8 @@ class MONETAccessorDataset(BaseAccessor):
         """
         from ..plots.cartopy_utils import facet_time_map
 
-        da = self._dataset_to_monet(self._obj[var])
         return facet_time_map(
-            da,
+            self._obj[var],
             time_dim=time_dim,
             ncols=ncols,
             map_kws=map_kws,

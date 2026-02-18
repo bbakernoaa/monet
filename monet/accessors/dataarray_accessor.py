@@ -4,6 +4,7 @@ import datetime
 import typing as t
 import warnings
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -465,19 +466,20 @@ class MONETAccessor(BaseAccessor):
 
     def quick_imshow(
         self,
-        map_kws=None,
-        roll_dateline=False,
-        projection=None,
-        colorbar=True,
-        figsize=None,
-        **kwargs,
-    ):
-        """Create a quick imshow plot of the data with flexible options."""
+        map_kws: dict[str, t.Any] | None = None,
+        roll_dateline: bool = False,
+        projection: t.Any | None = None,
+        colorbar: bool = True,
+        figsize: tuple[float, float] | None = None,
+        **kwargs: t.Any,
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """Create a quick imshow plot of the data with flexible options.
+        Convention-aware: supports both CF/COARDS and UGRID.
+        """
         from ..plots.cartopy_utils import plot_quick_imshow
 
-        da = self._dataset_to_monet(self._obj)
         return plot_quick_imshow(
-            da,
+            self._obj,
             map_kws=map_kws,
             projection=projection,
             colorbar=colorbar,
@@ -487,19 +489,20 @@ class MONETAccessor(BaseAccessor):
 
     def quick_map(
         self,
-        map_kws=None,
-        roll_dateline=False,
-        projection=None,
-        colorbar=True,
-        figsize=None,
-        **kwargs,
-    ):
-        """Create a quick map plot of the data with flexible options."""
+        map_kws: dict[str, t.Any] | None = None,
+        roll_dateline: bool = False,
+        projection: t.Any | None = None,
+        colorbar: bool = True,
+        figsize: tuple[float, float] | None = None,
+        **kwargs: t.Any,
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """Create a quick map plot of the data with flexible options.
+        Convention-aware: supports both CF/COARDS and UGRID.
+        """
         from ..plots.cartopy_utils import plot_quick_map
 
-        da = self._dataset_to_monet(self._obj)
         return plot_quick_map(
-            da,
+            self._obj,
             map_kws=map_kws,
             projection=projection,
             colorbar=colorbar,
@@ -509,19 +512,20 @@ class MONETAccessor(BaseAccessor):
 
     def quick_contourf(
         self,
-        map_kws=None,
-        roll_dateline=False,
-        projection=None,
-        colorbar=True,
-        figsize=None,
-        **kwargs,
-    ):
-        """Create a quick filled contour plot of the data with flexible options."""
+        map_kws: dict[str, t.Any] | None = None,
+        roll_dateline: bool = False,
+        projection: t.Any | None = None,
+        colorbar: bool = True,
+        figsize: tuple[float, float] | None = None,
+        **kwargs: t.Any,
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """Create a quick filled contour plot of the data with flexible options.
+        Convention-aware: supports both CF/COARDS and UGRID.
+        """
         from ..plots.cartopy_utils import plot_quick_contourf
 
-        da = self._dataset_to_monet(self._obj)
         return plot_quick_contourf(
-            da,
+            self._obj,
             map_kws=map_kws,
             projection=projection,
             colorbar=colorbar,
@@ -652,16 +656,16 @@ class MONETAccessor(BaseAccessor):
 
     def compare(
         self,
-        other,
-        stat="diff",
-        plot=True,
-        plot_method="quick_map",
-        stat_kwargs=None,
-        plot_kwargs=None,
-    ):
+        other: xr.DataArray,
+        stat: str | t.Callable = "diff",
+        plot: bool = True,
+        plot_method: str = "quick_map",
+        stat_kwargs: dict[str, t.Any] | None = None,
+        plot_kwargs: dict[str, t.Any] | None = None,
+    ) -> xr.DataArray | tuple[plt.Figure, plt.Axes]:
         """
-        Compute and optionally plot a statistic between this DataArray and another,
-        leveraging MONET's monet_stats metrics.
+        Compute and optionally plot a statistic between this DataArray and another.
+        Leverages MONET's monet_stats metrics and preserves Dask laziness.
 
         Parameters
         ----------
@@ -707,7 +711,7 @@ class MONETAccessor(BaseAccessor):
                     func = getattr(monet_stats, stat)
                     stat_da = func(da1, da2, **stat_kwargs)
                 except (ImportError, AttributeError) as e:
-                    # fallback to built-in
+                    # fallback to built-in (Dask-safe)
                     if stat.lower() == "rmse":
                         stat_da = np.sqrt(((da1 - da2) ** 2).mean(dim=stat_kwargs.get("dim", None)))
                     elif stat.lower() == "mae":
@@ -724,7 +728,14 @@ class MONETAccessor(BaseAccessor):
             # Convert scalar to DataArray if needed
             stat_da = xr.DataArray(stat_da)
 
-        stat_da.name = stat if isinstance(stat, str) else getattr(stat, "__name__", "statistic")
+        stat_name = stat if isinstance(stat, str) else getattr(stat, "__name__", "statistic")
+        stat_da.name = stat_name
+
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = stat_da.attrs.get("history", "")
+        stat_da.attrs["history"] = history + f"\n{curr_time} > Computed comparison statistic: {stat_name}"
+
         if plot:
             plot_func = getattr(stat_da.monet, plot_method)
             return plot_func(**plot_kwargs)
@@ -733,30 +744,31 @@ class MONETAccessor(BaseAccessor):
 
     def quick_facet_time_map(
         self,
-        map_kws=None,
-        projection=None,
-        colorbar=True,
-        figsize=None,
-        cmap=None,
-        vmin=None,
-        vmax=None,
-        norm=None,
-        dpi=150,
-        xlabel=None,
-        ylabel=None,
-        suptitle=None,
-        cbar_label=None,
-        xticks=None,
-        yticks=None,
-        annotations=None,
-        export_path=None,
-        export_formats=None,
-        time_dim="time",
-        ncols=3,
-        **kwargs,
-    ):
+        map_kws: dict[str, t.Any] | None = None,
+        projection: t.Any | None = None,
+        colorbar: bool = True,
+        figsize: tuple[float, float] | None = None,
+        cmap: str | t.Any | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        norm: t.Any | None = None,
+        dpi: int = 150,
+        xlabel: str | None = None,
+        ylabel: str | None = None,
+        suptitle: str | None = None,
+        cbar_label: str | None = None,
+        xticks: list[float] | None = None,
+        yticks: list[float] | None = None,
+        annotations: list[dict[str, t.Any]] | None = None,
+        export_path: str | None = None,
+        export_formats: list[str] | None = None,
+        time_dim: str = "time",
+        ncols: int = 3,
+        **kwargs: t.Any,
+    ) -> tuple[plt.Figure, np.ndarray]:
         """
         Create a facet grid of map plots for each time slice in a DataArray using Cartopy.
+        Convention-aware: supports both CF/COARDS and UGRID.
 
         Parameters
         ----------
@@ -804,9 +816,8 @@ class MONETAccessor(BaseAccessor):
         """
         from ..plots.cartopy_utils import facet_time_map
 
-        da = self._dataset_to_monet(self._obj)
         return facet_time_map(
-            da,
+            self._obj,
             time_dim=time_dim,
             ncols=ncols,
             map_kws=map_kws,

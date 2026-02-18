@@ -592,8 +592,16 @@ class BaseAccessor:
 
         return result
 
-    def structure_for_monet(self, lat_name="lat", lon_name="lon", return_obj=True, coards_compliant=False):
-        """Structure the DataArray for use with MONET functions.
+    def structure_for_monet(
+        self,
+        lat_name: str = "lat",
+        lon_name: str = "lon",
+        return_obj: bool = True,
+        coards_compliant: bool = False,
+    ) -> xr.DataArray | xr.Dataset | None:
+        """Structure the object for use with MONET functions.
+        Deprecated in favor of convention-aware processing, but preserved for
+        explicit dimension renaming to 'x'/'y'.
 
         Parameters
         ----------
@@ -608,20 +616,62 @@ class BaseAccessor:
 
         Returns
         -------
-        xarray.DataArray or None
-            Restructured DataArray if return_obj is True, otherwise None.
+        xarray.DataArray, xarray.Dataset, or None
+            Restructured object if return_obj is True, otherwise None.
         """
+        import warnings
+
+        warnings.warn(
+            "structure_for_monet is deprecated. Most MONET functions are now convention-aware "
+            "and do not require dimension renaming.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        res = self._dataset_to_monet(
+            self._obj,
+            lat_name=lat_name,
+            lon_name=lon_name,
+            coards_compliant=coards_compliant,
+        )
+
         if return_obj:
-            return self._dataset_to_monet(
-                self._obj,
-                lat_name=lat_name,
-                lon_name=lon_name,
-                coards_compliant=coards_compliant,
-            )
+            return res
         else:
-            self._obj = self._dataset_to_monet(
-                self._obj,
-                lat_name=lat_name,
-                lon_name=lon_name,
-                coards_compliant=coards_compliant,
-            )
+            self._obj = res
+            return None
+
+    def standardize(self) -> xr.DataArray | xr.Dataset:
+        """Standardize the object coordinates and attributes without renaming dimensions.
+        Convention-aware: adds standard_name attributes and ensures longitudes are wrapped.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+            The standardized object.
+        """
+        import datetime
+
+        obj = self._obj.copy()
+
+        # Wrap longitudes if present
+        lat_name, lon_name = self._detect_latlon_names(obj)
+        if lon_name:
+            obj[lon_name] = (obj[lon_name] + 180) % 360 - 180
+            if "standard_name" not in obj[lon_name].attrs:
+                obj[lon_name].attrs["standard_name"] = "longitude"
+            if "units" not in obj[lon_name].attrs:
+                obj[lon_name].attrs["units"] = "degrees_east"
+
+        if lat_name:
+            if "standard_name" not in obj[lat_name].attrs:
+                obj[lat_name].attrs["standard_name"] = "latitude"
+            if "units" not in obj[lat_name].attrs:
+                obj[lat_name].attrs["units"] = "degrees_north"
+
+        # Update history
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = obj.attrs.get("history", "")
+        obj.attrs["history"] = history + f"\n{curr_time} > Standardized via monet.standardize"
+
+        return obj
