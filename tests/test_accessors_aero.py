@@ -6,11 +6,16 @@ import xarray as xr
 import monet
 
 try:
-    import global_land_mask  # noqa: F401
+    import global_land_mask
 
     has_glm = True
 except ImportError:
-    has_glm = False
+    try:
+        import global_land_mask as glm  # noqa: F401
+
+        has_glm = True
+    except ImportError:
+        has_glm = False
 
 
 def test_base_accessor_convention_aware():
@@ -255,19 +260,21 @@ def test_interp_constant_lat_lon_da_ds():
     lat = np.linspace(30, 50, 10)
     lon = np.linspace(-120, -70, 10)
     data = np.random.rand(10, 10)
-    da = xr.DataArray(data, coords={"lat": lat, "lon": lon}, dims=("lat", "lon"), name="test")
-    ds = xr.Dataset({"test": da})
+    # Use standard y, x dimensions and standardize to add attributes
+    da = xr.DataArray(data, coords={"lat": (("y",), lat), "lon": (("x",), lon)}, dims=("y", "x"), name="test").monet.standardize()
+    ds = xr.Dataset({"test": da}).monet.standardize()
 
     # DataArray
     interp_da = da.monet.interp_constant_lat(lat=40.0)
     assert isinstance(interp_da, xr.DataArray)
-    assert interp_da.lat.values.mean() == 40.0
+    # Result of interp is a 1D trajectory along longitude
+    assert np.allclose(interp_da.lat.values, 40.0)
     assert "Interpolated to constant latitude" in interp_da.attrs["history"]
 
     # Dataset
     interp_ds = ds.monet.interp_constant_lon(lon=-100.0)
     assert isinstance(interp_ds, xr.Dataset)
-    assert interp_ds.lon.values.mean() == -100.0
+    assert np.allclose(interp_ds.lon.values, -100.0)
     assert "Interpolated to constant longitude" in interp_ds.attrs["history"]
 
 
