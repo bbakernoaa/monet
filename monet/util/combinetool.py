@@ -99,7 +99,8 @@ def _pair_xarray(
     elif not is_trajectory and "time" in obs.dims:
         # For fixed grids, use a single time slice as the target grid to avoid
         # AlignmentError if model and obs have different time dimension sizes.
-        target_grid = obs.isel(time=0)
+        # Must drop 'time' coord to avoid conflict with model's time dimension in output
+        target_grid = obs.isel(time=0).drop_vars("time", errors="ignore")
         paired = target_grid.monet.remap(model, method=method, **kwargs)
     else:
         # Default behavior: attempt direct remap
