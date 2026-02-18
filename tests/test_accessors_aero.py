@@ -6,16 +6,11 @@ import xarray as xr
 import monet
 
 try:
-    import global_land_mask
+    import global_land_mask  # noqa: F401
 
     has_glm = True
 except ImportError:
-    try:
-        import global_land_mask as glm  # noqa: F401
-
-        has_glm = True
-    except ImportError:
-        has_glm = False
+    has_glm = False
 
 
 def test_base_accessor_convention_aware():
