@@ -199,3 +199,92 @@ def test_is_land_ocean_advanced_lazy():
 
     xr.testing.assert_allclose(ds_masked_eager, ds_masked_lazy.compute())
     assert "Computed ocean mask" in ds_masked_eager.attrs["history"]
+
+
+def test_wrap_longitudes_da_ds():
+    """Verify wrap_longitudes works for both DataArray and Dataset."""
+    # DataArray
+    da = xr.DataArray([200.0], coords={"lon": ("x", [200.0]), "lat": ("x", [40.0])}, dims="x", name="test")
+    wrapped_da = da.monet.wrap_longitudes()
+    assert wrapped_da.lon.values[0] == -160.0
+    assert "Wrapped longitudes" in wrapped_da.attrs["history"]
+
+    # Dataset
+    ds = xr.Dataset({"test": da})
+    wrapped_ds = ds.monet.wrap_longitudes()
+    assert wrapped_ds.lon.values[0] == -160.0
+    assert "Wrapped longitudes" in wrapped_ds.attrs["history"]
+
+
+def test_tidy_da_ds():
+    """Verify tidy works for both DataArray and Dataset."""
+    # DataArray
+    da = xr.DataArray([1.0, 2.0], coords={"lon": ("x", [10.0, 5.0]), "lat": ("x", [40, 40])}, dims="x", name="test")
+    tidied_da = da.monet.tidy()
+    assert tidied_da.lon.values[0] == 5.0
+    assert "Tidied" in tidied_da.attrs["history"]
+
+    # Dataset
+    ds = xr.Dataset({"test": da})
+    tidied_ds = ds.monet.tidy()
+    assert tidied_ds.lon.values[0] == 5.0
+    assert "Tidied" in tidied_ds.attrs["history"]
+
+
+def test_is_land_pandas():
+    """Verify is_land support for Pandas."""
+    if not has_glm:
+        pytest.skip("global_land_mask not installed")
+
+    df = pd.DataFrame({"lat": [45.0, 0.0], "lon": [-100.0, 0.0], "val": [1.0, 2.0]})
+    # 45, -100 is land, 0, 0 is ocean
+    mask = df.monet.is_land()
+    assert mask[0]
+    assert not mask[1]
+
+    # Test return_xarray (which for pandas returns masked dataframe)
+    masked_df = df.monet.is_land(return_xarray=True)
+    assert not np.isnan(masked_df.val[0])
+    assert np.isnan(masked_df.val[1])
+
+
+@pytest.mark.skipif(not monet.accessors.base.has_xregrid, reason="xregrid not installed")
+def test_interp_constant_lat_lon_da_ds():
+    """Verify interp_constant_lat/lon works for both DataArray and Dataset."""
+    # Setup
+    lat = np.linspace(30, 50, 10)
+    lon = np.linspace(-120, -70, 10)
+    data = np.random.rand(10, 10)
+    da = xr.DataArray(data, coords={"lat": lat, "lon": lon}, dims=("lat", "lon"), name="test")
+    ds = xr.Dataset({"test": da})
+
+    # DataArray
+    interp_da = da.monet.interp_constant_lat(lat=40.0)
+    assert isinstance(interp_da, xr.DataArray)
+    assert interp_da.lat.values.mean() == 40.0
+    assert "Interpolated to constant latitude" in interp_da.attrs["history"]
+
+    # Dataset
+    interp_ds = ds.monet.interp_constant_lon(lon=-100.0)
+    assert isinstance(interp_ds, xr.Dataset)
+    assert interp_ds.lon.values.mean() == -100.0
+    assert "Interpolated to constant longitude" in interp_ds.attrs["history"]
+
+
+def test_cftime_to_datetime64_da_ds():
+    """Verify cftime_to_datetime64 works for both DataArray and Dataset."""
+    import cftime
+
+    times = [cftime.DatetimeNoLeap(2020, 1, 1), cftime.DatetimeNoLeap(2020, 1, 2)]
+
+    # DataArray
+    da = xr.DataArray([1.0, 2.0], coords={"time": times}, dims="time", name="test")
+    res_da = da.monet.cftime_to_datetime64()
+    assert res_da.time.dtype.kind == "M"
+    assert "Converted time from cftime to datetime64" in res_da.attrs["history"]
+
+    # Dataset
+    ds = xr.Dataset({"test": da})
+    res_ds = ds.monet.cftime_to_datetime64()
+    assert res_ds.time.dtype.kind == "M"
+    assert "Converted time from cftime to datetime64" in res_ds.attrs["history"]
