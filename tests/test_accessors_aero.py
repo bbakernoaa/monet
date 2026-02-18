@@ -5,6 +5,13 @@ import xarray as xr
 
 import monet
 
+try:
+    import global_land_mask  # noqa: F401
+
+    has_glm = True
+except ImportError:
+    has_glm = False
+
 
 def test_base_accessor_convention_aware():
     # Dataset with non-standard names
@@ -25,6 +32,7 @@ def test_base_accessor_convention_aware():
     assert ds2.monet.lon.name == "longitude"
 
 
+@pytest.mark.skipif(not has_glm, reason="global_land_mask not installed")
 def test_is_land_no_rename():
     # Kansas, USA
     ds = xr.Dataset({"data": (("x",), [1.0])}, coords={"lat": (("x",), [40.0]), "lon": (("x",), [-100.0])})
@@ -36,6 +44,7 @@ def test_is_land_no_rename():
     assert "latitude" not in ds.coords
 
 
+@pytest.mark.skipif(not has_glm, reason="global_land_mask not installed")
 def test_is_land_eager_vs_lazy():
     lats = np.array([40.0, 0.0])
     lons = np.array([-100.0, 0.0])
@@ -110,6 +119,8 @@ def test_ugrid_detection():
     assert ds.monet.lon.name == "node_x"
 
     # Test is_land on UGRID (should detect coordinates correctly)
+    if not has_glm:
+        pytest.skip("global_land_mask not installed")
     land = ds.monet.is_land()
     assert len(land) == 2
     assert land[0]  # approx 40N, 0E is ocean? Wait, let's check

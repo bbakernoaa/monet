@@ -64,6 +64,53 @@ class MONETAccessorDataset(BaseAccessor):
         else:
             return island if hasattr(island.data, "chunks") else island.values
 
+    def remap_xesmf(self, data, parallel=True, n_workers=None, **kwargs):
+        """Deprecated: Remap data using xESMF regridding."""
+        warnings.warn(
+            "remap_xesmf is deprecated and will be removed in a future version. "
+            "Please use remap(data, method='xesmf') or remap(data, method='conservative') instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Handle method argument from kwargs
+        if "method" in kwargs:
+            kwargs["xesmf_method"] = kwargs.pop("method")
+
+        return self.remap(data, method="xesmf", **kwargs)
+
+    def remap_nearest_parallel(self, data, radius_of_influence=1e6, n_processes=None, **kwargs):
+        """Deprecated: Remap data using nearest neighbor interpolation with parallel processing."""
+        warnings.warn(
+            "remap_nearest_parallel is deprecated. xregrid uses dask for parallelization.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.remap(data, method="nearest", **kwargs)
+
+    def _remap_xesmf_dataset(self, dset, filename="monet_xesmf_regrid_file.nc", **kwargs):
+        """Deprecated: Remap dataset using xESMF."""
+        warnings.warn("_remap_xesmf_dataset is deprecated.", DeprecationWarning, stacklevel=2)
+        return self.remap(dset, method="xesmf", **kwargs)
+
+    def _remap_xesmf_dataarray(
+        self,
+        dataarray,
+        method="bilinear",
+        filename="monet_xesmf_regrid_file.nc",
+        **kwargs,
+    ):
+        """Deprecated: Remap DataArray using xESMF."""
+        warnings.warn("_remap_xesmf_dataarray is deprecated.", DeprecationWarning, stacklevel=2)
+        # We can implement this via resample
+        from ..util import resample
+
+        target = self._obj
+        out = resample.resample(dataarray, target, method=method, **kwargs)
+        if out.name in self._obj.variables:
+            out.name = out.name + "_y"
+        self._obj[out.name] = out
+        return out
+
     def is_ocean(self, return_xarray: bool = False) -> xr.Dataset | xr.DataArray | np.ndarray:
         """Check if points are on ocean.
         Supports both Eager (NumPy) and Lazy (Dask) backends via ``xarray.apply_ufunc``.
