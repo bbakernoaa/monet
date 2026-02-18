@@ -1,9 +1,10 @@
 import unittest
-from unittest.mock import MagicMock, patch
-import xarray as xr
-import pandas as pd
+from unittest.mock import patch
+
 import numpy as np
-import monet
+import pandas as pd
+import xarray as xr
+
 
 class TestPairTrajectory(unittest.TestCase):
     def setUp(self):
@@ -11,33 +12,29 @@ class TestPairTrajectory(unittest.TestCase):
         times_obs = pd.date_range("2024-01-01", periods=10, freq="1h")
         nodes = np.arange(5)
         self.obs = xr.Dataset(
-            {
-                "data": (("time", "node"), np.random.rand(10, 5))
-            },
+            {"data": (("time", "node"), np.random.rand(10, 5))},
             coords={
                 "time": times_obs,
                 "node": nodes,
                 "latitude": (("time", "node"), np.random.uniform(30, 40, (10, 5))),
-                "longitude": (("time", "node"), np.random.uniform(-100, -90, (10, 5)))
-            }
+                "longitude": (("time", "node"), np.random.uniform(-100, -90, (10, 5))),
+            },
         )
 
         # Create dummy model (gridded)
-        times_model = pd.date_range("2024-01-01", periods=5, freq="2h") # Different time steps
+        times_model = pd.date_range("2024-01-01", periods=5, freq="2h")  # Different time steps
         lat = np.linspace(25, 45, 10)
         lon = np.linspace(-105, -85, 10)
         self.model = xr.Dataset(
-            {
-                "data": (("time", "y", "x"), np.random.rand(5, 10, 10))
-            },
+            {"data": (("time", "y", "x"), np.random.rand(5, 10, 10))},
             coords={
                 "time": times_model,
                 "latitude": (("y", "x"), np.broadcast_to(lat[:, None], (10, 10))),
-                "longitude": (("y", "x"), np.broadcast_to(lon[None, :], (10, 10)))
-            }
+                "longitude": (("y", "x"), np.broadcast_to(lon[None, :], (10, 10))),
+            },
         )
 
-    @patch('monet.accessors.base.BaseAccessor.remap')
+    @patch("monet.accessors.base.BaseAccessor.remap")
     def test_pair_trajectory_interp_false(self, mock_remap):
         # Mock remap return value
         # It should return data with original name 'data', same as model.
@@ -45,7 +42,7 @@ class TestPairTrajectory(unittest.TestCase):
         mock_remap.return_value = mock_ret
 
         # Call pair with interp_time=False (default)
-        paired = self.model.monet.pair(self.obs, method='bilinear', interp_time=False)
+        self.model.monet.pair(self.obs, method="bilinear", interp_time=False)
 
         # Verify remap was called
         self.assertTrue(mock_remap.called)
@@ -59,22 +56,23 @@ class TestPairTrajectory(unittest.TestCase):
 
         # Check if model_passed time matches obs time (10 steps)
         # Fixed code should pass model aligned to obs (10 steps) using reindex.
-        self.assertEqual(model_passed.dims['time'], 10)
+        self.assertEqual(model_passed.dims["time"], 10)
         xr.testing.assert_equal(model_passed.time, self.obs.time)
 
-    @patch('monet.accessors.base.BaseAccessor.remap')
+    @patch("monet.accessors.base.BaseAccessor.remap")
     def test_pair_trajectory_interp_true(self, mock_remap):
         mock_ret = self.obs.copy()
         mock_remap.return_value = mock_ret
 
-        paired = self.model.monet.pair(self.obs, method='bilinear', interp_time=True)
+        self.model.monet.pair(self.obs, method="bilinear", interp_time=True)
 
         self.assertTrue(mock_remap.called)
         args, kwargs = mock_remap.call_args
         model_passed = args[0]
 
-        self.assertEqual(model_passed.dims['time'], 10)
+        self.assertEqual(model_passed.dims["time"], 10)
         xr.testing.assert_equal(model_passed.time, self.obs.time)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
