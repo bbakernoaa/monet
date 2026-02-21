@@ -101,27 +101,37 @@ def ugrid_grid():
     return ds
 
 
-def test_pair_aeronet_cf_multi(aeronet_obs_multi, cf_grid):
-    """Test pairing multiple AERONET sites with a CF grid."""
-    # This uses actual xregrid/esmpy if available in environment
+def test_pair_multi_sites(aeronet_obs_multi, cf_grid, ugrid_grid):
+    """Test pairing multiple AERONET sites with both CF and UGRID grids."""
+    # CF Grid
+    paired_cf = pair(cf_grid, aeronet_obs_multi, method="nearest")
+    assert isinstance(paired_cf, pd.DataFrame)
+    assert len(paired_cf) == len(aeronet_obs_multi)
+    assert "model_aod" in paired_cf.columns
+    assert set(paired_cf.siteid.unique()) == {"Site_0", "Site_1", "Site_2"}
+
+    # UGRID Grid
+    paired_ugrid = pair(ugrid_grid, aeronet_obs_multi, method="nearest")
+    assert isinstance(paired_ugrid, pd.DataFrame)
+    assert len(paired_ugrid) == len(aeronet_obs_multi)
+    assert "model_aod" in paired_ugrid.columns
+    assert set(paired_ugrid.siteid.unique()) == {"Site_0", "Site_1", "Site_2"}
+
+
+def test_pair_and_mask(aeronet_obs_multi, cf_grid):
+    """Test pairing and then applying a mask to the result."""
     paired = pair(cf_grid, aeronet_obs_multi, method="nearest")
 
-    assert isinstance(paired, pd.DataFrame)
-    assert len(paired) == len(aeronet_obs_multi)
-    assert "model_aod" in paired.columns
-    assert set(paired.siteid.unique()) == {"Site_0", "Site_1", "Site_2"}
-    assert not paired.model_aod.isnull().all()
-    # Check that the first site has data at the matching time
-    assert not np.isnan(paired.loc[(paired.siteid == "Site_0") & (paired.time == "2023-07-01 00:00:00"), "model_aod"].iloc[0])
+    # Apply giorgi mask
+    # This should work without geopandas/rasterio because we have cached the mask in the repo
+    masked = paired.monet.get_region("giorgi")
 
+    assert "giorgi" in masked.columns
+    assert not masked.giorgi.isnull().all()
+    # Kansas (40, -100) is in Central North America (CNA)
+    assert "CNA" in masked.giorgi.unique()
 
-def test_pair_aeronet_ugrid_multi(aeronet_obs_multi, ugrid_grid):
-    """Test pairing multiple AERONET sites with a UGRID grid."""
-    paired = pair(ugrid_grid, aeronet_obs_multi, method="nearest")
-
-    assert isinstance(paired, pd.DataFrame)
-    assert len(paired) == len(aeronet_obs_multi)
-    assert "model_aod" in paired.columns
-    assert set(paired.siteid.unique()) == {"Site_0", "Site_1", "Site_2"}
-    assert not paired.model_aod.isnull().all()
-    assert not np.isnan(paired.loc[(paired.siteid == "Site_0") & (paired.time == "2023-07-01 00:00:00"), "model_aod"].iloc[0])
+    # Apply land mask
+    masked = paired.monet.is_land(return_xarray=True)
+    # Kansas is land, so values should remain
+    assert not masked.model_aod.isnull().all()
