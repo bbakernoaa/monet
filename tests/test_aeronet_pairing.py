@@ -5,8 +5,10 @@ import xarray as xr
 
 from monet.util.combinetool import pair
 
-# Ensure monetio is available for these tests
+# Ensure monetio and xregrid/esmpy are available for these tests
 aeronet = pytest.importorskip("monetio.obs.aeronet")
+pytest.importorskip("xregrid")
+pytest.importorskip("esmpy")
 
 
 def generate_mock_aeronet(filename, n_sites=1):
