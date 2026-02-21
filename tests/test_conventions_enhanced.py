@@ -1,19 +1,15 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-import pytest
+
 from monet.util.tools import get_giorgi_region_df
+
 
 def test_ugrid_face_coordinates_detection():
     # Create a UGRID dataset with face_coordinates
     ds = xr.Dataset()
     ds["mesh"] = xr.DataArray(
-        0,
-        attrs={
-            "cf_role": "mesh_topology",
-            "face_coordinates": "face_lon face_lat",
-            "node_coordinates": "node_lon node_lat"
-        }
+        0, attrs={"cf_role": "mesh_topology", "face_coordinates": "face_lon face_lat", "node_coordinates": "node_lon node_lat"}
     )
     ds["face_lat"] = xr.DataArray([0.0, 10.0], dims="face")
     ds["face_lon"] = xr.DataArray([0.0, 20.0], dims="face")
@@ -38,7 +34,7 @@ def test_ugrid_face_coordinates_detection():
         attrs={
             "cf_role": "mesh_topology",
             "face_coordinates": "face_lon face_lat",
-        }
+        },
     )
     ds2["face_lat"] = xr.DataArray([0.0, 10.0], dims="face")
     ds2["face_lon"] = xr.DataArray([0.0, 20.0], dims="face")
@@ -47,15 +43,10 @@ def test_ugrid_face_coordinates_detection():
     assert lat_name == "face_lat"
     assert lon_name == "face_lon"
 
+
 def test_ugrid_dataarray_mesh_attr():
     ds = xr.Dataset()
-    ds["mesh"] = xr.DataArray(
-        0,
-        attrs={
-            "cf_role": "mesh_topology",
-            "node_coordinates": "node_lon node_lat"
-        }
-    )
+    ds["mesh"] = xr.DataArray(0, attrs={"cf_role": "mesh_topology", "node_coordinates": "node_lon node_lat"})
     ds["node_lat"] = xr.DataArray([0.0, 10.0], dims="node")
     ds["node_lon"] = xr.DataArray([0.0, 20.0], dims="node")
     ds["test_var"] = xr.DataArray([1.0, 2.0], dims="node", attrs={"mesh": "mesh"})
@@ -79,6 +70,7 @@ def test_ugrid_dataarray_mesh_attr():
     assert lat_name == "node_lat"
     assert lon_name == "node_lon"
 
+
 def test_cf_units_detection():
     ds = xr.Dataset()
     ds["my_lat"] = xr.DataArray([0.0, 10.0], dims="lat", attrs={"units": "degrees_north"})
@@ -88,6 +80,7 @@ def test_cf_units_detection():
     lat_name, lon_name = ds.monet._detect_latlon_names(ds)
     assert lat_name == "my_lat"
     assert lon_name == "my_lon"
+
 
 def test_giorgi_region_non_standard_names():
     ds = xr.Dataset()
@@ -99,6 +92,7 @@ def test_giorgi_region_non_standard_names():
     ds_out = get_giorgi_region_df(ds)
     assert "GIORGI_INDEX" in ds_out.variables
     assert "GIORGI_ACRO" in ds_out.variables
+
 
 def test_dataframe_convention_awareness():
     df = pd.DataFrame({"LAT": [40.0], "LON": [-80.0], "obs": [1.0]})

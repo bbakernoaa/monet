@@ -80,3 +80,13 @@ The `monet.met_funcs` module contains a collection of routines for estimating va
 *   `calc_L(...)`: Calculates the Monin-Obukhov stability length.
 *   `calc_u_star(...)`: Calculates friction velocity.
 *   `calc_Psi_H(zoL)` and `calc_Psi_M(zoL)`: Adiabatic correction factors for heat and momentum transport.
+
+## Vertical Coordinate Utilities
+
+The `monet.util.vertical` module provides tools for working with various vertical coordinate systems, particularly for models like FV3.
+
+### FV3 Pressure and Height
+*   `calc_fv3_pressure(ak, bk, ps)`: Calculates 3D pressure from hybrid coefficients.
+*   `calc_fv3_height(temp, phalf, hsfc)`: Calculates geopotential height at layer interfaces using the hypsometric equation.
+
+These functions support both NumPy and Dask-backed arrays and maintain data provenance in the `history` attribute.
