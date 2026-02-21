@@ -25,6 +25,7 @@ dependencies = [
   "cartopy",
   "dask",
   "matplotlib",
+  "monetio @ git+https://github.com/bbakernoaa/monetio@develop",
   "xregrid @ git+https://github.com/bbakernoaa/xregrid",
   "monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats",
   "netCDF4",

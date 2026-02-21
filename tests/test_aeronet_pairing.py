@@ -2,9 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from monetio.obs import aeronet
 
 from monet.util.combinetool import pair
+
+# Ensure monetio is available for these tests
+aeronet = pytest.importorskip("monetio.obs.aeronet")
 
 
 def generate_mock_aeronet(filename, n_sites=1):
