@@ -123,33 +123,84 @@ def find_coords(obj: xr.Dataset | xr.DataArray, key: str) -> xr.DataArray | None
             except Exception:
                 pass
 
-    # Fallback to common names
+    # 2. UGRID detection for Dataset
+    if isinstance(obj, xr.Dataset):
+        info = get_ugrid_info(obj)
+        if info:
+            # Check node, face, then edge coordinates
+            for attr in ["node_coordinates", "face_coordinates", "edge_coordinates"]:
+                coords_names = info.get(attr, [])
+                if len(coords_names) >= 2:
+                    c1_name, c2_name = coords_names[0], coords_names[1]
+                    if c1_name in obj and c2_name in obj:
+                        c1, c2 = obj[c1_name], obj[c2_name]
+                        if key == "latitude":
+                            if any(x in c1_name.lower() for x in ["lat", "y"]) or c1.attrs.get("standard_name") == "latitude":
+                                return c1
+                            if any(x in c2_name.lower() for x in ["lat", "y"]) or c2.attrs.get("standard_name") == "latitude":
+                                return c2
+                        else:
+                            if any(x in c1_name.lower() for x in ["lon", "x"]) or c1.attrs.get("standard_name") == "longitude":
+                                return c1
+                            if any(x in c2_name.lower() for x in ["lon", "x"]) or c2.attrs.get("standard_name") == "longitude":
+                                return c2
+
+    # 3. Check for units (legacy support and fallback)
+    check_obj = obj.variables if hasattr(obj, "variables") else obj.coords
+    for var in check_obj:
+        attrs = obj[var].attrs
+        if "units" in attrs:
+            u = str(attrs["units"]).lower()
+            if key == "latitude":
+                if any(x in u for x in ["degrees_north", "degree_north", "degree_n", "degrees_n"]):
+                    return obj[var]
+            elif key == "longitude":
+                if any(x in u for x in ["degrees_east", "degree_east", "degree_e", "degrees_e"]):
+                    return obj[var]
+
+    # 4. Fallback to common names
     names = {
         "latitude": [
             "latitude",
             "lat",
+            "Latitude",
+            "LATITUDE",
+            "LAT",
+            "y",
+            "XLAT",
+            "XLAT_M",
+            "grid_yt",
+            "nav_lat",
+            "NY",
+            "lat_b",
+            "lat_centers",
             "latCell",
             "lat_face",
             "lat_node",
-            "XLAT",
-            "XLAT_M",
-            "nav_lat",
-            "grid_yt",
-            "Latitude",
-            "Lat",
+            "node_lat",
+            "face_lat",
+            "edge_lat",
         ],
         "longitude": [
             "longitude",
             "lon",
+            "Longitude",
+            "LONGITUDE",
+            "LON",
+            "x",
+            "XLONG",
+            "XLONG_M",
+            "grid_xt",
+            "nav_lon",
+            "NX",
+            "lon_b",
+            "lon_centers",
             "lonCell",
             "lon_face",
             "lon_node",
-            "XLONG",
-            "XLONG_M",
-            "nav_lon",
-            "grid_xt",
-            "Longitude",
-            "Lon",
+            "node_lon",
+            "face_lon",
+            "edge_lon",
         ],
     }
 
@@ -198,6 +249,9 @@ def detect_grid_type(obj: xr.Dataset | xr.DataArray) -> str:
     # Detect via attributes on DataArray
     if not is_ugrid and "mesh" in obj.attrs:
         is_ugrid = True
+
+    if is_ugrid:
+        return "unstructured"
 
     lat = find_coords(obj, "latitude")
     lon = find_coords(obj, "longitude")

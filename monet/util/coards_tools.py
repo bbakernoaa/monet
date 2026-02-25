@@ -338,19 +338,16 @@ def monet_to_coards(
                             # Add bounds if requested
                             if add_bounds:
                                 # Add bounds variables
-                                dlat = abs(lat_1d.diff("y").mean().values) / 2 if len(lat_1d) > 1 else 0.5
-                                dlon = abs(lon_1d.diff("x").mean().values) / 2 if len(lon_1d) > 1 else 0.5
+                                # For metadata resolution, we compute eagerly
+                                dlat = float(abs(lat_1d.diff("y").mean())) if len(lat_1d) > 1 else 0.5
+                                dlon = float(abs(lon_1d.diff("x").mean())) if len(lon_1d) > 1 else 0.5
 
-                                lat_bounds = np.zeros((len(lat_1d), 2))
-                                lat_bounds[:, 0] = lat_1d.values - dlat
-                                lat_bounds[:, 1] = lat_1d.values + dlat
+                                # Generate bounds lazily
+                                lat_bounds = xr.concat([lat_1d - dlat, lat_1d + dlat], dim="bounds").transpose("y", "bounds")
+                                lon_bounds = xr.concat([lon_1d - dlon, lon_1d + dlon], dim="bounds").transpose("x", "bounds")
 
-                                lon_bounds = np.zeros((len(lon_1d), 2))
-                                lon_bounds[:, 0] = lon_1d.values - dlon
-                                lon_bounds[:, 1] = lon_1d.values + dlon
-
-                                result["lat_bounds"] = (("y", "bounds"), lat_bounds)
-                                result["lon_bounds"] = (("x", "bounds"), lon_bounds)
+                                result["lat_bounds"] = lat_bounds
+                                result["lon_bounds"] = lon_bounds
 
                                 result["lat"].attrs["bounds"] = "lat_bounds"
                                 result["lon"].attrs["bounds"] = "lon_bounds"
@@ -425,17 +422,19 @@ def monet_to_coards(
             # Add bounds if requested and not already present
             if add_bounds and "bounds" not in result[vc].attrs:
                 try:
-                    vc_vals = result[vc].values
-                    vc_dim = result[vc].dims[0]
-                    if len(vc_vals) > 1:
-                        dz = np.abs(np.diff(vc_vals)).mean() / 2
-                        vc_bounds = np.zeros((len(vc_vals), 2))
-                        vc_bounds[:-1, 1] = (vc_vals[:-1] + vc_vals[1:]) / 2
-                        vc_bounds[1:, 0] = vc_bounds[:-1, 1]
-                        vc_bounds[0, 0] = vc_vals[0] - dz
-                        vc_bounds[-1, 1] = vc_vals[-1] + dz
+                    vc_da = result[vc]
+                    vc_dim = vc_da.dims[0]
+                    if len(vc_da) > 1:
+                        # Compute mean diff eagerly for metadata
+                        dz = float(np.abs(vc_da.diff(vc_dim)).mean()) / 2
 
-                        result[f"{vc}_bounds"] = ((vc_dim, "bounds"), vc_bounds)
+                        # Create bounds (approximated for non-uniform grids if necessary)
+                        # but keep it lazy
+                        vc_lower = vc_da - dz
+                        vc_upper = vc_da + dz
+                        vc_bounds = xr.concat([vc_lower, vc_upper], dim="bounds").transpose(vc_dim, "bounds")
+
+                        result[f"{vc}_bounds"] = vc_bounds
                         result[vc].attrs["bounds"] = f"{vc}_bounds"
                 except Exception as e:
                     print(f"Warning: Could not create bounds for {vc}: {e}")
