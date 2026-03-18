@@ -4,7 +4,15 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from monet.util.tools import get_epa_region_df, get_giorgi_region_df, linregress, search_listinlist
+from monet.util.interp_util import lonlat_to_dataset, points_to_dataset
+from monet.util.tools import (
+    findclosest,
+    get_epa_region_df,
+    get_giorgi_region_df,
+    linregress,
+    nearest,
+    search_listinlist,
+)
 
 
 def test_search_listinlist_correctness():
@@ -233,3 +241,74 @@ def test_linregress_aero():
     assert hasattr(slope_l_2d.data, "chunks")
     assert slope_l_2d.shape == (2,)
     np.testing.assert_allclose(slope_l_2d.compute(), [slope_e, slope_e])
+
+
+def test_findclosest_aero():
+    """Verifies findclosest works with both Eager and Lazy data."""
+    arr = np.array([0, 10, 20, 30, 40, 50])
+    val = 22.5
+
+    # Eager path
+    idx_e, res_e = findclosest(arr, val)
+    assert idx_e == 2
+    assert res_e == 20
+
+    # Lazy path with multiple values
+    arr_da = xr.DataArray(arr, dims=["search_dim"]).chunk({"search_dim": 3})
+    val_da = xr.DataArray([22.5, 38.0], dims=["val_dim"]).chunk({"val_dim": 1})
+
+    idx_l, res_l = findclosest(arr_da, val_da)
+
+    assert hasattr(idx_l.data, "chunks")
+    assert hasattr(res_l.data, "chunks")
+
+    np.testing.assert_array_equal(idx_l.compute().values, [2, 4])
+    np.testing.assert_array_equal(res_l.compute().values, [20, 40])
+
+
+def test_nearest_aero():
+    """Verifies nearest works with both Eager and Lazy data."""
+    arr = np.array([0, 10, 20, 30, 40, 50])
+    val = 22.5
+
+    res_e = nearest(arr, val)
+    assert res_e == 20
+
+    arr_da = xr.DataArray(arr, dims=["search_dim"]).chunk({"search_dim": 3})
+    res_l = nearest(arr_da, val)
+
+    assert hasattr(res_l.data, "chunks")
+    assert res_l.compute() == 20
+
+
+def test_lonlat_to_dataset_aero():
+    """Verifies lonlat_to_dataset preserves laziness."""
+    lon = xr.DataArray(np.linspace(0, 360, 10), dims=["x"]).chunk({"x": 5})
+    lat = xr.DataArray(np.linspace(-90, 90, 5), dims=["y"]).chunk({"y": 5})
+
+    ds = lonlat_to_dataset(lon, lat)
+
+    assert hasattr(ds.lon.data, "chunks")
+    assert hasattr(ds.lat.data, "chunks")
+    assert ds.lon.shape == (5, 10)
+    assert ds.lat.shape == (5, 10)
+
+    # Verify correctness against eager path
+    ds_e = lonlat_to_dataset(lon.values, lat.values)
+    np.testing.assert_allclose(ds.lon.compute().values, ds_e.lon.values)
+
+
+def test_points_to_dataset_aero():
+    """Verifies points_to_dataset preserves laziness."""
+    lon = xr.DataArray(np.linspace(0, 360, 10), dims=["site"]).chunk({"site": 5})
+    lat = xr.DataArray(np.linspace(-90, 90, 10), dims=["site"]).chunk({"site": 5})
+
+    ds = points_to_dataset(lon, lat)
+
+    assert hasattr(ds.lon.data, "chunks")
+    assert hasattr(ds.lat.data, "chunks")
+    assert ds.lon.shape == (10, 1)
+
+    # Verify correctness against eager path
+    ds_e = points_to_dataset(lon.values, lat.values)
+    np.testing.assert_allclose(ds.lon.compute().values, ds_e.lon.values)

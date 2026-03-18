@@ -371,23 +371,66 @@ def linregress(x: xr.DataArray | np.ndarray, y: xr.DataArray | np.ndarray, dim: 
     )
 
 
-def findclosest(list_obj: list, value: float) -> tuple[int, float]:
+def findclosest(list_obj: Any, value: Any) -> Any:
     """Find the index and value of the closest element to a target value.
+
+    This implementation is backend-agnostic and supports Dask-backed
+    xarray objects.
 
     Parameters
     ----------
-    list_obj : list-like
+    list_obj : array-like
         Collection of values to search through.
-    value : float or int
-        The target value to find the closest match to.
+    value : float, int, or array-like
+        The target value(s) to find the closest match to.
 
     Returns
     -------
-    tuple
-        (index, closest_value) where:
-        - index is the position in the list of the closest value
-        - closest_value is the value from the list that is closest to the target
+    index, closest_value : same type as input
+        - index: the position in list_obj of the closest value
+        - closest_value: the value from list_obj that is closest to the target
     """
+    if isinstance(list_obj, xr.DataArray | xr.Dataset) or isinstance(value, xr.DataArray | xr.Dataset):
+        # Use xarray operations to preserve laziness and avoid apply_ufunc scalar issues
+        # Ensure they are DataArrays for indexing
+        if not isinstance(list_obj, xr.DataArray):
+            list_obj = xr.DataArray(list_obj, dims=["search_dim"])
+        if not isinstance(value, xr.DataArray):
+            value = xr.DataArray(value)
+
+        # Name search dimension if not already named
+        if len(list_obj.dims) == 1 and list_obj.dims[0] == "dim_0":
+            list_obj = list_obj.rename({"dim_0": "search_dim"})
+        search_dim = list_obj.dims[0]
+
+        diff = np.abs(list_obj - value)
+        idx = diff.argmin(dim=search_dim)
+        res = list_obj.isel({search_dim: idx})
+
+        # Add history
+        for out in (idx, res):
+            if hasattr(out, "attrs"):
+                curr_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                history = out.attrs.get("history", "")
+                out.attrs["history"] = (history + f"\n{curr_time} > Found closest element via monet.util.tools").strip()
+
+        return idx, res
+
+    # Fallback for non-xarray (NumPy or small lists)
+    arr = np.asanyarray(list_obj)
+    val = np.asanyarray(value)
+
+    if arr.ndim == 1 and (val.ndim == 0 or val.size == 1):
+        # Original simple path
+        a = min((abs(x - float(val)), x, i) for i, x in enumerate(list_obj))
+        return a[2], a[1]
+
+    # Vectorized NumPy path
+    diff = np.abs(arr[np.newaxis, :] - val[..., np.newaxis])
+    idx = np.argmin(diff, axis=-1)
+    return idx, arr[idx]
+
+    # Original scalar/list logic preserved for small inputs
     a = min((abs(x - value), x, i) for i, x in enumerate(list_obj))
     return a[2], a[1]
 
@@ -395,19 +438,23 @@ def findclosest(list_obj: list, value: float) -> tuple[int, float]:
 def nearest(items: Any, pivot: Any) -> Any:
     """Find the nearest value to pivot in a collection.
 
+    This implementation is backend-agnostic and supports Dask-backed
+    xarray objects using xarray.apply_ufunc.
+
     Parameters
     ----------
-    items : iterable
+    items : array-like
         Collection of values to search through.
-    pivot : float or int
-        The value to find the nearest match to.
+    pivot : float, int, or array-like
+        The value(s) to find the nearest match to.
 
     Returns
     -------
-    object
+    closest_value : same type as input
         The item from the collection that is closest to the pivot value.
     """
-    return min(items, key=lambda x: abs(x - pivot))
+    _, val = findclosest(items, pivot)
+    return val
 
 
 def _force_forder(x: np.ndarray) -> tuple[np.ndarray, bool]:
