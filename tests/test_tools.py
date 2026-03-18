@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from monet.util.tools import get_epa_region_df, get_giorgi_region_df, search_listinlist
+from monet.util.tools import get_epa_region_df, get_giorgi_region_df, linregress, search_listinlist
 
 
 def test_search_listinlist_correctness():
@@ -182,3 +182,54 @@ def test_get_giorgi_region_dask():
 
     # Values should be identical after compute
     np.testing.assert_allclose(result_eager.GIORGI_INDEX.values, result_lazy.GIORGI_INDEX.compute().values)
+
+
+def test_linregress_aero():
+    """Verifies that linregress works with both Eager and Lazy data."""
+    # Create sample data
+    x_data = np.linspace(0, 10, 100)
+    # y = 2.5x + 1.0
+    y_data = 2.5 * x_data + 1.0
+
+    # 1. Eager (NumPy) path
+    slope_e, intercept_e, r2_e, stderr_e = linregress(x_data, y_data)
+
+    # 2. Lazy (Dask) path with xarray
+    x_da = xr.DataArray(x_data, dims=["time"]).chunk({"time": 100})
+    y_da = xr.DataArray(y_data, dims=["time"]).chunk({"time": 100})
+
+    slope_l, intercept_l, r2_l, stderr_l = linregress(x_da, y_da)
+
+    # Assertions for Laziness
+    assert hasattr(slope_l.data, "chunks")
+    assert hasattr(intercept_l.data, "chunks")
+
+    # Compute results
+    slope_l_c = slope_l.compute()
+    intercept_l_c = intercept_l.compute()
+
+    # Assertions for Correctness
+    np.testing.assert_allclose(slope_e, slope_l_c)
+    np.testing.assert_allclose(intercept_e, intercept_l_c)
+
+    # Verify values match expectations
+    assert np.isclose(slope_e, 2.5)
+    assert np.isclose(intercept_e, 1.0)
+    assert np.isclose(r2_e, 1.0)
+
+    # Test with multi-dimensional data
+    x_2d = np.tile(x_data, (2, 1))  # (2, 100)
+    y_2d = np.tile(y_data, (2, 1))
+
+    slope_2d, intercept_2d, r2_2d, stderr_2d = linregress(x_2d, y_2d)
+    assert slope_2d.shape == (2,)
+    np.testing.assert_allclose(slope_2d, [slope_e, slope_e])
+
+    # Test with 2D DataArray (Dask)
+    x_da_2d = xr.DataArray(x_2d, dims=["site", "time"]).chunk({"site": 1, "time": 100})
+    y_da_2d = xr.DataArray(y_2d, dims=["site", "time"]).chunk({"site": 1, "time": 100})
+
+    slope_l_2d, intercept_l_2d, r2_l_2d, stderr_l_2d = linregress(x_da_2d, y_da_2d)
+    assert hasattr(slope_l_2d.data, "chunks")
+    assert slope_l_2d.shape == (2,)
+    np.testing.assert_allclose(slope_l_2d.compute(), [slope_e, slope_e])
