@@ -240,15 +240,18 @@ def _apply_aero(
         if output_dtypes is None:
             output_dtypes = [float]
 
-        result = xr.apply_ufunc(
-            func,
-            *args,
-            kwargs=kwargs,
-            dask="parallelized",
-            output_dtypes=output_dtypes,
-            output_core_dims=output_core_dims,
-            input_core_dims=input_core_dims,
-        )
+        # Only pass core dimensions if provided, to avoid xarray issues with None
+        apply_kwargs = {
+            "kwargs": kwargs,
+            "dask": "parallelized",
+            "output_dtypes": output_dtypes,
+        }
+        if output_core_dims is not None:
+            apply_kwargs["output_core_dims"] = output_core_dims
+        if input_core_dims is not None:
+            apply_kwargs["input_core_dims"] = input_core_dims
+
+        result = xr.apply_ufunc(func, *args, **apply_kwargs)
 
         # Update history
         results = result if isinstance(result, tuple) else (result,)
@@ -339,8 +342,14 @@ def linregress(x: xr.DataArray | np.ndarray, y: xr.DataArray | np.ndarray, dim: 
 
         denominator = n * sum_xx - sum_x**2
         # Use np.where to avoid division by zero
-        slope = np.divide(n * sum_xy - sum_x * sum_y, denominator, out=np.zeros_like(denominator), where=denominator != 0)
-        intercept = (sum_y - slope * sum_x) / n
+        # Ensure floating point division to match xr.apply_ufunc expectations and avoid casting errors
+        slope = np.divide(
+            (n * sum_xy - sum_x * sum_y).astype(float),
+            denominator.astype(float),
+            out=np.zeros_like(denominator, dtype=float),
+            where=denominator != 0,
+        )
+        intercept = (sum_y.astype(float) - slope * sum_x.astype(float)) / n
 
         # R-squared
         # SS_tot = sum((y - y_mean)**2) = sum(y**2) - (sum(y)**2)/n
