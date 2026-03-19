@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 import pytest
+import xarray as xr
 
 from monet.util.combinetool import pair
 from monet.util.resample import resample
@@ -225,7 +225,7 @@ def test_apply_aero_numpy():
 def test_apply_aero_xarray_lazy():
     """Verify _apply_aero works with Lazy (Dask) xarray objects."""
     pytest.importorskip("dask.array")
-    import dask.array as dask_arr
+
     from monet.util.aero import _apply_aero
 
     def dummy_logic(x, y):
