@@ -7,7 +7,7 @@ import datetime
 import numpy as np
 import xarray as xr
 
-from ..met_funcs import R_d, g
+from .constants import R_d, g
 
 
 def calc_fv3_pressure(
