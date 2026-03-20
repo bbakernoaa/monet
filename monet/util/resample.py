@@ -18,6 +18,7 @@ except ImportError:
     except ImportError:
         has_xregrid = False
 
+
 def resample(
     source_data: xr.DataArray | xr.Dataset,
     target_grid: xr.DataArray | xr.Dataset,
