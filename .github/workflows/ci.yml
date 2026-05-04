@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Modernized Python versions (3.6 removed)
-        python-version: ["3.10", "3.11", "3.12"]
+        # Modernized Python versions (3.10 removed due to monet-stats requirements)
+        python-version: ["3.11", "3.12"]
     defaults:
       run:
         shell: bash -l {0} # Necessary for micromamba to activate environments
