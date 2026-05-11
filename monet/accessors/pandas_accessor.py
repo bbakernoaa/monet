@@ -6,7 +6,6 @@ import xarray as xr
 
 from .base import BaseAccessor, has_xregrid
 
-
 try:
     import dask.dataframe as dd
 

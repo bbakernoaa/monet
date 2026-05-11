@@ -150,7 +150,9 @@ def _pair_dataframe(
     lon_da = obs.monet.lon
 
     if lat_da is None or lon_da is None:
-        raise AttributeError(f"Could not detect latitude and longitude columns in observation DataFrame. Found: {list(obs.columns)}")
+        raise AttributeError(
+            f"Could not detect latitude and longitude columns in observation DataFrame. Found: {list(obs.columns)}"
+        )
 
     lat_col = lat_da.name
     lon_col = lon_da.name
@@ -233,7 +235,7 @@ def _pair_dataframe(
         model_vars = [model.name or "model_data"]
         # If the DataArray was nameless, it will have the default name in the DataFrame
         if model.name is None and "model_data" in paired_df.columns:
-            pass # already named model_data
+            pass  # already named model_data
     else:
         model_vars = list(model.data_vars)
 
