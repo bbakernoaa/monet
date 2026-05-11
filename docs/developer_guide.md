@@ -17,7 +17,7 @@ This guide is for contributors and maintainers of MONET. It covers project struc
 - **Extensibility:** Use accessors to add methods to xarray and pandas objects without modifying their core classes.
 - **Modularity:** Keep plotting, regridding, and utility code in separate modules.
 - **Interoperability:** Support common data formats and conventions (e.g., CF, COARDS).
-- **Performance:** Adhere to the **Aero Protocol**: ensure pipelines support both Eager (NumPy) and Lazy (Dask) evaluation, prioritize vectorization, and never force computation within processing functions.
+- **Performance:** Adhere to **backend-agnostic vectorized computation principles**: ensure pipelines support both Eager (NumPy) and Lazy (Dask) evaluation, prioritize vectorization, and never force computation within processing functions.
 
 ## The Aero Protocol 🍃⚡
 
