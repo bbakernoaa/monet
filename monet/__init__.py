@@ -37,7 +37,7 @@ from .util.coards_tools import (
     monet_to_coards,
 )
 
-__version__ = "2.3.1"
+__version__ = "3.0.0"
 
 # Core functionality
 __all__ = [
