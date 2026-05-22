@@ -1,0 +1,57 @@
+site_name: MONET
+site_url: https://noaa-oar-arl.github.io/monet/
+site_description: The Model and Observation Evaluation Toolkit (MONET)
+site_author: Barry D. Baker
+
+theme:
+  name: material
+  logo: assets/MONET-logo.png
+  favicon: assets/MONET-logo.png
+  palette:
+    - primary: custom
+      accent: custom
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Why MONET?: why-monet.md
+    - Installation: installing.md
+    - Tutorial: tutorial.md
+  - User Guide:
+    - Xarray Accessor: monet-accessor.md
+  - Help & Reference:
+    - API Reference: api.md
+    - Developer Guide: developer_guide.md
+  - Gallery: gallery/index.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+  - gallery:
+      examples_dirs: docs/examples
+      gallery_dirs: docs/gallery
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
