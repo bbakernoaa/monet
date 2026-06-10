@@ -231,3 +231,44 @@ def test_pair_dataframe_interp_time(sample_model, sample_obs_df):
         assert "ozone" in result.columns
         # resample should have been called, and then interp
         mock_resample.assert_called_once()
+
+
+def test_pair_xarray_duplicate_time_does_not_raise(sample_model):
+    """pair() must not raise when obs has duplicate time coordinate labels.
+
+    This happens for multi-site datasets stored as a flat xarray object where
+    the same timestamp appears once per station.  xr.merge previously raised
+    InvalidIndexError during alignment; the fix bypasses merge and assigns
+    model variables directly onto obs.
+    """
+    # Build obs with duplicate times: 3 timestamps × 2 sites stored along a
+    # single 'points' dimension so that each time value appears twice.
+    times_dup = pd.to_datetime(["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02", "2023-01-03", "2023-01-03"])
+    n_pts = len(times_dup)
+    obs_dup = xr.Dataset(
+        data_vars={"obs_val": (("points",), np.random.rand(n_pts))},
+        coords={
+            "time": (("points",), times_dup),
+            "latitude": (("points",), [35.0, 45.0] * 3),
+            "longitude": (("points",), [-100.0, -80.0] * 3),
+        },
+    )
+
+    # Paired result has the same shape as obs_dup
+    dummy_ozone = np.random.rand(n_pts)
+    paired_ds = xr.Dataset(
+        data_vars={"ozone": (("points",), dummy_ozone)},
+        coords={
+            "time": (("points",), times_dup),
+            "latitude": (("points",), obs_dup.latitude.values),
+            "longitude": (("points",), obs_dup.longitude.values),
+        },
+    )
+
+    with patch("monet.util.resample.resample", return_value=paired_ds):
+        result = pair(sample_model, obs_dup)
+
+    assert isinstance(result, xr.Dataset)
+    assert "ozone" in result.data_vars
+    assert "obs_val" in result.data_vars
+    assert result.sizes["points"] == n_pts

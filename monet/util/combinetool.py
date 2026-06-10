@@ -74,6 +74,18 @@ def _pair_xarray(
     **kwargs: t.Any,
 ) -> xr.Dataset | xr.DataArray:
     """Pair xarray model with xarray observations."""
+    def _ensure_lat_lon_aliases(ds: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
+        """Add `lat`/`lon` coordinate aliases when only `latitude`/`longitude` exist."""
+        out = ds
+        if "lat" not in out.coords and "latitude" in out.coords:
+            out = out.assign_coords(lat=out["latitude"])
+        if "lon" not in out.coords and "longitude" in out.coords:
+            out = out.assign_coords(lon=out["longitude"])
+        return out
+
+    model = _ensure_lat_lon_aliases(model)
+    obs = _ensure_lat_lon_aliases(obs)
+
     # Use remap via accessor - convention aware
 
     # Detect if we have a trajectory (time-varying coordinates)
@@ -99,7 +111,7 @@ def _pair_xarray(
         # For fixed grids, use a single time slice as the target grid to avoid
         # AlignmentError if model and obs have different time dimension sizes.
         # Must drop 'time' coord to avoid conflict with model's time dimension in output
-        target_grid = obs.isel(time=0).drop_vars("time", errors="ignore")
+        target_grid = _ensure_lat_lon_aliases(obs.isel(time=0).drop_vars("time", errors="ignore"))
         paired = target_grid.monet.remap(model, method=method, **kwargs)
     else:
         # Default behavior: attempt direct remap
@@ -123,6 +135,20 @@ def _pair_xarray(
     update_history(paired, "Paired with observations via monet.pair")
 
     if merge:
+        # xr.merge aligns on shared dimensions before combining, which raises
+        # InvalidIndexError when the time coordinate contains duplicate labels
+        # (common for multi-site point observations stored in a flat xarray object).
+        # When duplicates are present, assign model variables directly to a copy
+        # of obs instead of relying on merge alignment.
+        has_dup_time = "time" in obs.coords and bool(pd.Index(obs["time"].values).duplicated().any())
+        if has_dup_time:
+            result = obs.copy()
+            if isinstance(paired, xr.Dataset):
+                for var in paired.data_vars:
+                    result[var] = paired[var]
+            else:  # DataArray
+                result[paired.name] = paired
+            return result
         # Use compat='override' to prefer obs coordinates if there are slight mismatches
         # (e.g. from regridding precision issues)
         return xr.merge([obs, paired], compat="override")
