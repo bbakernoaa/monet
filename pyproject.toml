@@ -24,8 +24,8 @@ classifiers = [
 dependencies = [
   "cartopy",
   "matplotlib",
-  "xregrid",
-  "monet-stats",
+  "xregrid @ git+https://github.com/bbakernoaa/xregrid.git@main",
+  "monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats.git",
   "netCDF4",
   "numpy",
   "pandas",
