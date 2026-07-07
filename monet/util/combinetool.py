@@ -97,16 +97,26 @@ def _pair_xarray(
         is_trajectory = True
 
     if is_trajectory:
-        # For moving platforms, we must align time before spatial remapping
-        # to ensure we sample at the right location for each time step.
-        if interp_time:
-            model = model.interp(time=obs.time)
-        else:
-            # If not interpolating, use nearest neighbor time alignment
-            # Use .values to avoid issues if obs.time is part of a MultiIndex (fixes CI failure)
-            model = model.reindex(time=obs.time.values, method="nearest")
+        # To avoid duplicate 'time' dimension conflicts and massive OOMs, we temporarily
+        # rename the model's 'time' dimension to 'valid_time' before remapping. We remap
+        # spatially first, and then perform nearest-neighbor or interpolation matching
+        # of 'valid_time' to the observation 'time' AFTER remapping. This is extremely
+        # fast and uses virtually zero memory.
+        time_renamed = False
+        if "time" in model.dims and "time" in obs.dims:
+            model = model.rename({"time": "valid_time"})
+            time_renamed = True
+        elif "valid_time" in model.dims and "time" in obs.dims:
+            time_renamed = True
 
         paired = obs.monet.remap(model, method=method, **kwargs)
+
+        if time_renamed:
+            if interp_time:
+                paired = paired.interp(valid_time=obs.time)
+            else:
+                paired = paired.sel(valid_time=obs.time, method="nearest")
+            paired = paired.drop_vars("valid_time", errors="ignore")
     elif not is_trajectory and "time" in obs.dims:
         # For fixed grids, use a single time slice as the target grid to avoid
         # AlignmentError if model and obs have different time dimension sizes.
@@ -136,6 +146,11 @@ def _pair_xarray(
 
     if merge:
         # xr.merge aligns on shared dimensions before combining, which raises
+        # errors if coordinate variables have different values. We drop coordinate
+        # variables from paired that are already present in obs to prevent clashing.
+        if isinstance(obs, xr.Dataset):
+            coords_to_drop = [c for c in paired.coords if c in obs.coords and c != "time"]
+            paired = paired.drop_vars(coords_to_drop, errors="ignore")
         # InvalidIndexError when the time coordinate contains duplicate labels
         # (common for multi-site point observations stored in a flat xarray object).
         # When duplicates are present, assign model variables directly to a copy
