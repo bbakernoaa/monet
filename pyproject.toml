@@ -34,7 +34,7 @@ dependencies = [
   "pooch",
   "requests",
   "Pillow>=9.1.0",
-  "pytspack",
+  "pytspack @ git+https://github.com/noaa-oar-arl/pytspack.git",
   "dask",
   "scipy",
 ]
