@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import islice
 import numbers
 import tempfile
 from pathlib import Path
@@ -10,58 +11,93 @@ import numpy as np
 import xarray as xr
 
 
-def _mesh_to_xarray(axis, mesh, grid_id: int) -> xr.Dataset:
+def _read_gmsh_rows(lines, count: int, width: int, *, dtype=np.float64) -> np.ndarray:
+    """Read fixed-width Gmsh ASCII rows in chunks using NumPy's C parser."""
+    chunks = []
+    remaining = count
+    while remaining:
+        batch_size = min(remaining, 100_000)
+        chunk = np.fromstring(" ".join(islice(lines, batch_size)), sep=" ", dtype=dtype)
+        if chunk.size != batch_size * width:
+            raise ValueError("Unexpected Gmsh row format")
+        chunks.append(chunk.reshape(batch_size, width))
+        remaining -= batch_size
+    return np.concatenate(chunks, axis=0) if len(chunks) > 1 else chunks[0]
+
+
+def _mesh_to_xarray(axis, mesh, grid_id: int, *, shape: tuple[int, int] | None = None) -> xr.Dataset:
     """Export AXIS cell centers as a coordinate-based xarray Dataset."""
     with tempfile.TemporaryDirectory(prefix="monet-ncep-grid-") as temp_dir:
         mesh_path = Path(temp_dir, "mesh.msh")
         axis.write_gmsh(str(mesh_path), mesh)
 
         node_coords: np.ndarray | None = None
-        node_lookup: dict[int, int] = {}
-        face_nodes: list[list[int]] = []
+        face_nodes: np.ndarray | None = None
         with mesh_path.open(encoding="ascii") as stream:
             lines = iter(stream)
             for line in lines:
                 marker = line.strip()
                 if marker == "$Nodes":
                     node_count = int(next(lines))
-                    node_coords = np.empty((node_count, 2), dtype=np.float64)
-                    for index in range(node_count):
-                        node_id, x, y, _z = next(lines).split()
-                        node_lookup[int(node_id)] = index
-                        node_coords[index] = (float(x), float(y))
+                    node_rows = _read_gmsh_rows(lines, node_count, 4)
+                    node_coords = node_rows[:, 1:3]
                 elif marker == "$Elements":
                     element_count = int(next(lines))
-                    for _ in range(element_count):
-                        values = [int(value) for value in next(lines).split()]
-                        _element_id, element_type, tag_count = values[:3]
-                        if element_type not in (2, 3):  # Gmsh triangle or quadrilateral
-                            continue
-                        vertex_ids = values[3 + tag_count :]
-                        face_nodes.append([node_lookup[node_id] for node_id in vertex_ids])
+                    first = next(lines).split()
+                    stride = len(first)
+                    first_row = np.asarray(first, dtype=np.int64)[None, :]
+                    element_rows = (
+                        np.vstack(
+                            [
+                                first_row,
+                                _read_gmsh_rows(lines, element_count - 1, stride, dtype=np.int64),
+                            ]
+                        )
+                        if element_count > 1
+                        else first_row
+                    )
+                    element_types = element_rows[:, 1]
+                    tag_counts = element_rows[:, 2]
+                    if (
+                        np.all(np.isin(element_types, (2, 3)))
+                        and np.all(element_types == element_types[0])
+                        and np.all(tag_counts == tag_counts[0])
+                    ):
+                        first_vertex = 3 + int(tag_counts[0])
+                        face_nodes = element_rows[:, first_vertex:] - 1
+                    else:
+                        # Retain support for mixed or non-quad AXIS exports.
+                        face_nodes = np.asarray(
+                            [row[3 + int(row[2]) :] - 1 for row in element_rows if row[1] in (2, 3)],
+                            dtype=object,
+                        )
 
     if node_coords is None:
         raise ValueError(f"AXIS returned an empty mesh for NCEP grid {grid_id}")
-    if len(face_nodes) != mesh.n_cells:
+    if face_nodes is None or len(face_nodes) != mesh.n_cells:
         raise ValueError(
             f"AXIS mesh export for NCEP grid {grid_id} contained {len(face_nodes)} triangular/quadrilateral faces; "
             f"expected {mesh.n_cells}"
         )
 
-    lon_cell = np.empty(len(face_nodes), dtype=np.float64)
-    lat_cell = np.empty(len(face_nodes), dtype=np.float64)
-    for face_index, indices in enumerate(face_nodes):
-        longitudes = np.rad2deg(np.unwrap(np.deg2rad(node_coords[indices, 0])))
-        lon_cell[face_index] = (longitudes.mean() + 180.0) % 360.0 - 180.0
-        lat_cell[face_index] = np.clip(node_coords[indices, 1].mean(), -90.0, 90.0)
+    if face_nodes.dtype == object:
+        raise ValueError("AXIS exported mixed face sizes; xarray conversion requires uniform faces")
+    face_node_coords = node_coords[face_nodes]
+    face_lon_bounds = np.rad2deg(np.unwrap(np.deg2rad(face_node_coords[:, :, 0]), axis=1))
+    face_lat_bounds = face_node_coords[:, :, 1]
+    lon_cell = (face_lon_bounds.mean(axis=1) + 180.0) % 360.0 - 180.0
+    lat_cell = np.clip(face_lat_bounds.mean(axis=1), -90.0, 90.0)
 
     # Mesh exposes counts but not its structured layout. AXIS can detect the
     # grid dimensions; Gmsh face order is row-major with longitude varying fast.
-    layout = axis.detect_rectilinear_grid(mesh)
-    ni, nj = layout.get("ni"), layout.get("nj")
-    if not ni or not nj or ni * nj != len(face_nodes):
-        layout = axis.detect_regular_grid(mesh)
+    if shape is None:
+        layout = axis.detect_rectilinear_grid(mesh)
         ni, nj = layout.get("ni"), layout.get("nj")
+        if not ni or not nj or ni * nj != len(face_nodes):
+            layout = axis.detect_regular_grid(mesh)
+            ni, nj = layout.get("ni"), layout.get("nj")
+    else:
+        ni, nj = shape
     if not ni or not nj or ni * nj != len(face_nodes):
         raise ValueError(
             f"AXIS does not expose a structured shape for NCEP grid {grid_id}; use as_xarray=False to receive its native mesh"
@@ -72,7 +108,8 @@ def _mesh_to_xarray(axis, mesh, grid_id: int) -> xr.Dataset:
     lon_axis = np.nanmean(lon_2d, axis=0)
     lat_axis = np.nanmean(lat_2d, axis=1)
     rectilinear = np.allclose(lon_2d, lon_axis[None, :], atol=1.0e-7) and np.allclose(lat_2d, lat_axis[:, None], atol=1.0e-7)
-    attrs = {"ncep_grib1_grid_id": grid_id, "grid_name": f"G{grid_id:03d}"}
+    prefix = "F" if shape is not None else "G"
+    attrs = {"ncep_grib1_grid_id": grid_id, "grid_name": f"{prefix}{grid_id:03d}"}
     if rectilinear:
         result = xr.Dataset(
             coords={
@@ -92,15 +129,9 @@ def _mesh_to_xarray(axis, mesh, grid_id: int) -> xr.Dataset:
 
     # Keep AXIS's actual cell topology alongside the familiar coordinate grid.
     # The connectivity is also the authoritative polygon bound for each face.
-    max_nodes = max(map(len, face_nodes))
+    max_nodes = face_nodes.shape[1]
     fill_value = -1
-    connectivity = np.full((len(face_nodes), max_nodes), fill_value, dtype=np.int32)
-    face_lon_bounds = np.full((len(face_nodes), max_nodes), np.nan, dtype=np.float64)
-    face_lat_bounds = np.full((len(face_nodes), max_nodes), np.nan, dtype=np.float64)
-    for face_index, indices in enumerate(face_nodes):
-        connectivity[face_index, : len(indices)] = indices
-        face_lon_bounds[face_index, : len(indices)] = np.rad2deg(np.unwrap(np.deg2rad(node_coords[indices, 0])))
-        face_lat_bounds[face_index, : len(indices)] = node_coords[indices, 1]
+    connectivity = face_nodes.astype(np.int32, copy=False)
     result = result.assign_coords(
         node=("node", np.arange(len(node_coords), dtype=np.int32)),
         face=("face", np.arange(len(face_nodes), dtype=np.int32)),
@@ -190,3 +221,63 @@ def get_ncep_grid(grid_id: int | str, *, as_xarray: bool = True):
     except (ValueError, RuntimeError) as exc:
         raise ValueError(f"AXIS does not provide a named mesh for NCEP Table B grid {number}") from exc
     return _mesh_to_xarray(axis, mesh, number) if as_xarray else mesh
+
+
+def get_guassian_grid(grid_id: int | str, *, as_xarray: bool = True):
+    """Return an AXIS named Gaussian grid as an xarray Dataset or AXIS mesh.
+
+    AXIS creates the named mesh. By default, MONET exports face cell-center
+    coordinates and CF/UGRID face topology as an xarray ``Dataset`` suitable
+    for MONET's grid-aware APIs. The UGRID connectivity preserves the exact
+    AXIS cell polygons. Set ``as_xarray=False`` to receive AXIS's native
+    ``axis.Mesh``.
+
+    Parameters
+    ----------
+    grid_id : int or str
+        Table B grid number. Strings may use the ``F`` prefix (for example,
+        ``"F720"``); AXIS receives the corresponding ``F720`` name.
+    as_xarray : bool, default: True
+        Return an xarray Dataset instead of the native AXIS mesh.
+
+    Raises
+    ------
+    ImportError
+        If AXIS is not installed.
+    ValueError
+        If AXIS does not provide a named mesh for this grid identifier, or
+        cannot provide a structured cell layout for the xarray form.
+    """
+    try:
+        import axis
+    except (ImportError, OSError) as exc:
+        raise ImportError("AXIS (axis-regrid) is required to create named Gaussian grids") from exc
+
+    if isinstance(grid_id, bool):
+        raise TypeError("grid_id must be an integer or a F-prefixed grid number")
+    if isinstance(grid_id, numbers.Integral):
+        number = int(grid_id)
+    elif isinstance(grid_id, str):
+        value = grid_id.strip().upper()
+        if value.startswith("F"):
+            value = value[1:]
+        if not value.isdigit():
+            raise ValueError(f"Invalid NCEP Table B grid identifier: {grid_id!r}")
+        number = int(value)
+    else:
+        raise TypeError("grid_id must be an integer or a F-prefixed grid number")
+
+    if number < 0:
+        raise ValueError(f"Invalid Gaussian grid identifier: {grid_id!r}")
+    try:
+        mesh = axis.make_named_mesh(f"F{number}")
+    except (ValueError, RuntimeError) as exc:
+        raise ValueError(f"AXIS does not provide a named mesh for NCEP Table B grid {number}") from exc
+    # F-grid Gaussian meshes have 2N latitude rows and 4N longitude points;
+    # the AXIS faces connect adjacent rows, so there is one fewer face row.
+    return _mesh_to_xarray(axis, mesh, number, shape=(4 * number, 2 * number - 1)) if as_xarray else mesh
+
+
+# Preserve the original misspelling for compatibility while exposing the
+# correctly spelled public name.
+get_gaussian_grid = get_guassian_grid
