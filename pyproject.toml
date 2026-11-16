@@ -24,8 +24,8 @@ classifiers = [
 dependencies = [
   "cartopy",
   "matplotlib",
-  "axis-regrid @ git+https://github.com/NOAA-EMC/HELM.git@dda4cb5cb2b05f082c8637c4ad594fb74d8f8671#subdirectory=libs/axis",
-  "monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats.git",
+  "axis-regrid @ git+https://github.com/bbakernoaa/HELM.git@c5a38a8ca14ba7afa190eceebb62495323957b21#subdirectory=libs/axis",
+  "monet-stats @ git+https://github.com/noaa-oar-arl/monet-stats.git@0b3aeb4fb72e1e1a29b8888ebd57c07eef227ab9",
   "netCDF4",
   "numpy",
   "pandas",
@@ -34,8 +34,8 @@ dependencies = [
   "pooch",
   "requests",
   "Pillow>=9.1.0",
-  "pytspack @ git+https://github.com/noaa-oar-arl/pytspack.git",
-  "dask",
+  "pytspack @ git+https://github.com/noaa-oar-arl/pytspack.git@306ca0771c4adc15ce346d99d8d178c38a464209",
+  "dask[distributed]",
   "scipy",
 ]
 

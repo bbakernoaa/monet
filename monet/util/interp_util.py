@@ -137,9 +137,9 @@ def points_to_dataset(
         if lat.shape != lon.shape:
             # If one is scalar and other is array, broadcast
             if lat.size == 1:
-                lat = np.full_like(lon, lat[0])
+                lat = np.full(lon.shape, lat[0], dtype=lat.dtype)
             elif lon.size == 1:
-                lon = np.full_like(lat, lon[0])
+                lon = np.full(lat.shape, lon[0], dtype=lon.dtype)
             else:
                 raise ValueError("Latitude and longitude must have the same shape or one must be scalar.")
 

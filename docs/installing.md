@@ -28,17 +28,18 @@ Some features require additional dependencies:
 
 MONET uses AXIS for horizontal and vertical regridding. The `pytspack` dependency
 is retained for other existing utilities. AXIS is
-installed from the pinned HELM commit
-`dda4cb5cb2b05f082c8637c4ad594fb74d8f8671`; the distribution is `axis-regrid`
+installed from the provisional HELM pull request #44 commit
+`c5a38a8ca14ba7afa190eceebb62495323957b21`; the distribution is `axis-regrid`
 and the Python import is `axis`.
 
 ### Native prerequisites
 
-Install a C++20 compiler (GCC >=13 or Clang >=16), CMake >=3.21, and MPI with C++
-development headers. AXIS also requires Kokkos and KokkosKernels 5.1; its build can
+Install a C++20 compiler (GCC >=13 or Clang >=16) and CMake >=3.21. The pinned Python build does not require MPI. AXIS also requires Kokkos and KokkosKernels 5.1; its build can
 fetch them when no installed packages are found. PROJ is optional for projected grids.
 No published AXIS wheel is assumed by this version of MONET. A pip install builds
-native code and does not require ESMF or a conda environment.
+native code and does not require ESMF or a conda environment. Native NetCDF weight-file I/O is disabled by default in this AXIS build; enabling it requires a compatible NetCDF C library and AXIS build configuration. Dask distributed is installed for lazy AXIS operations.
+
+The AXIS pin tracks an unmerged pull request. Review compatibility and replace it with an upstream release after merge. Direct Git dependencies are pinned to immutable commits; update the pins in both `pyproject.toml` and `environment-dev.yml` together, then run the test matrix and clean installation checks. Transitive dependencies are not locked.
 
 On macOS, match the compiler and OpenMP library to your Kokkos installation. For
 an Apple-Clang-built Homebrew Kokkos, install AXIS with Apple Clang and the same
@@ -53,7 +54,7 @@ pip install \
   -Ccmake.define.OpenMP_CXX_LIB_NAMES=omp \
   -Ccmake.define.OpenMP_omp_LIBRARY="$(brew --prefix libomp)/lib/libomp.dylib" \
   -Ccmake.define.KokkosKernels_ADD_DEFAULT_ETI=OFF \
-  "axis-regrid @ git+https://github.com/NOAA-EMC/HELM.git@dda4cb5cb2b05f082c8637c4ad594fb74d8f8671#subdirectory=libs/axis"
+  "axis-regrid @ git+https://github.com/bbakernoaa/HELM.git@c5a38a8ca14ba7afa190eceebb62495323957b21#subdirectory=libs/axis"
 ```
 
 The `-include bit` flag works around a missing C++20 header in fetched KokkosKernels
@@ -94,7 +95,7 @@ pip install .
 `pyproject.toml` declares the exact AXIS git URL. For a standalone AXIS installation:
 
 ```bash
-pip install "axis-regrid @ git+https://github.com/NOAA-EMC/HELM.git@dda4cb5cb2b05f082c8637c4ad594fb74d8f8671#subdirectory=libs/axis"
+pip install "axis-regrid @ git+https://github.com/bbakernoaa/HELM.git@c5a38a8ca14ba7afa190eceebb62495323957b21#subdirectory=libs/axis"
 ```
 
 To verify the engine is available:

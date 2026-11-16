@@ -10,6 +10,7 @@ dependencies:
   # core
   - cartopy
   - dask
+  - distributed
   - matplotlib
   - netcdf4
   - numpy
@@ -20,7 +21,6 @@ dependencies:
   - cmake>=3.21
   - kokkos>=5.1
   - kokkos-kernels>=5.1
-  - openmpi
   - fortran-compiler
   #
   #

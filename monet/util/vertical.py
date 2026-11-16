@@ -108,34 +108,9 @@ def calc_fv3_height(
     -----
     This function assumes the vertical dimension is ordered from top to bottom
     (index 0 is the top of the atmosphere, last index is the surface).
-    It is backend-agnostic and supports both NumPy and Dask-backed xarray objects.
+    Pressure must be finite, positive, and strictly increasing toward the surface.
+    For Dask-backed inputs validation occurs when the result is computed.
     """
-    # --- Validate vertical ordering ----------------------------------------
-    # phalf pressure should *decrease* from index 0 (TOA) to last (surface)
-    # when ordered top-to-bottom.  Check the first slice to detect a
-    # bottom-up array and raise early rather than produce a wrong result.
-    if isinstance(phalf, xr.DataArray):
-        # Checking Dask-backed values here would compute data during graph
-        # construction. Validate eagerly only when the values are already in
-        # memory; lazy inputs retain the documented ordering precondition.
-        if hasattr(phalf.data, "__dask_graph__"):
-            _p_check = None
-        else:
-            _p_check = phalf.isel({dim: slice(None, 2)}).data
-    else:
-        _p_check = np.asarray(phalf).flat[:2] if np.asarray(phalf).ndim >= 1 else None
-    if _p_check is not None and len(_p_check) >= 2:
-        # Flatten to 1-D for the comparison (handles multi-dim arrays)
-        _p_flat = np.asarray(_p_check).ravel()
-        if _p_flat[0] < _p_flat[1]:
-            raise ValueError(
-                "calc_fv3_height expects phalf ordered top-to-bottom "
-                "(pressure *decreasing* from index 0 toward the surface). "
-                "Received an array where phalf[0] < phalf[1], which indicates "
-                "bottom-up ordering. Reverse the vertical dimension before "
-                "calling this function (e.g. phalf = phalf.isel(z=slice(None, None, -1)))."
-            )
-    # -----------------------------------------------------------------------
     if not isinstance(temp, xr.DataArray):
         temp = xr.DataArray(temp, dims=[dim] + [f"__dim_{i}" for i in range(temp.ndim - 1)])
     if not isinstance(phalf, xr.DataArray):
@@ -144,6 +119,7 @@ def calc_fv3_height(
     if not isinstance(hsfc, xr.DataArray):
         # Attempt to match spatial dimensions of temp if hsfc is not a DataArray
         spatial_dims = [d for d in temp.dims if d != dim]
+        hsfc = np.asarray(hsfc)
         if hsfc.ndim == len(spatial_dims):
             hsfc = xr.DataArray(hsfc, dims=spatial_dims)
         else:
@@ -152,12 +128,14 @@ def calc_fv3_height(
     def _hydrostatic_logic(t, p_int, h_s):
         # Core dimensions are moved to the end.
         # t: (..., N), p_int: (..., N+1), h_s: (...)
+        if np.any(~np.isfinite(p_int)) or np.any(p_int <= 0) or np.any(np.diff(p_int, axis=-1) <= 0):
+            raise ValueError("Interface pressure must be finite, positive, and strictly increasing from top to surface")
         p_up = p_int[..., :-1]
         p_lo = p_int[..., 1:]
         # dz = (R_d * T / g) * ln(p_lo / p_up)
         dz = (R_d * t / g) * np.log(p_lo / p_up)
 
-        h_int = np.empty_like(p_int)
+        h_int = np.empty(p_int.shape, dtype=np.result_type(t, p_int, h_s, np.float64))
         h_int[..., -1] = h_s
         # Summing from bottom up (along the last dimension)
         h_int[..., :-1] = h_s[..., np.newaxis] + np.cumsum(dz[..., ::-1], axis=-1)[..., ::-1]
@@ -175,7 +153,7 @@ def calc_fv3_height(
         input_core_dims=[["__layer"], ["__interface"], []],
         output_core_dims=[["__interface"]],
         dask="parallelized",
-        output_dtypes=[temp.dtype],
+        output_dtypes=[np.result_type(temp.dtype, phalf.dtype, hsfc.dtype, np.float64)],
     )
 
     res = res.rename({"__interface": dim})
