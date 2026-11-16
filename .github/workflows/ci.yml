@@ -5,7 +5,7 @@ name: CI
   push:
     branches: [stable, master, develop, 'v3']
   pull_request:
-    branches: [stable, master, develop, 'v3', feature/**']
+    branches: [stable, master, develop, 'v3', 'feature/**']
 
 jobs:
   test:
@@ -38,6 +38,38 @@ jobs:
 
       - name: Run Tests
         run: pytest -v --cov=monet
+
+  wheel-smoke:
+    name: Wheel smoke (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment-dev.yml
+          environment-name: monet-wheel
+          cache-environment: true
+          create-args: python=${{ matrix.python-version }}
+      - name: Build and install wheel
+        run: |
+          python -m pip wheel --no-deps . \
+            --wheel-dir "$RUNNER_TEMP/monet-wheels"
+          python -m pip install --no-deps \
+            "$RUNNER_TEMP"/monet-wheels/monet-*.whl
+      - name: Verify installed package and data outside checkout
+        run: |
+          cd "$RUNNER_TEMP"
+          python -c 'import monet; print(monet.__file__)'
+          python -c 'from pathlib import Path; \
+            from monet.util.mask import NCEP_POLY_DIR; \
+            assert Path(NCEP_POLY_DIR, "APL.poly").is_file()'
 
   docs:
     name: Check docs build

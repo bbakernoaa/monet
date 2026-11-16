@@ -1,29 +1,26 @@
 import matplotlib
 import numpy as np
+import pytest
+import xarray as xr
 
 matplotlib.use("Agg")
 from monet.plots import cartopy_utils
 
 
-def test_plot_quick_imshow_runs():
+@pytest.mark.parametrize("plot_method", ["plot_quick_imshow", "plot_quick_map"])
+def test_quick_plot_creates_geographic_axes_with_data(plot_method):
     import matplotlib.pyplot as plt
+    from cartopy.mpl.geoaxes import GeoAxes
 
-    arr = np.random.rand(10, 10)
-    fig, ax = plt.subplots(subplot_kw={"projection": "rectilinear"})
+    data = xr.DataArray(
+        np.arange(12).reshape(3, 4),
+        dims=("lat", "lon"),
+        coords={"lat": [30, 40, 50], "lon": [-120, -110, -100, -90]},
+    )
+    fig, ax = getattr(cartopy_utils, plot_method)(data, colorbar=False)
     try:
-        cartopy_utils.plot_quick_imshow(arr, ax=ax)
-    except Exception:
-        pass
-    plt.close(fig)
-
-
-def test_plot_quick_map_runs():
-    import matplotlib.pyplot as plt
-
-    arr = np.random.rand(10, 10)
-    fig, ax = plt.subplots(subplot_kw={"projection": "rectilinear"})
-    try:
-        cartopy_utils.plot_quick_map(arr, ax=ax)
-    except Exception:
-        pass
-    plt.close(fig)
+        assert isinstance(ax, GeoAxes)
+        assert ax.figure is fig
+        assert ax.images or ax.collections
+    finally:
+        plt.close(fig)

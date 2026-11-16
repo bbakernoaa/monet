@@ -61,38 +61,6 @@ def sample_dataframe():
 
 
 def test_dataarray_accessor_basic(sample_dataarray):
-    # Test remap to a different-shaped grid
-    target_lat = np.linspace(-10, 10, 7)
-    target_lon = np.linspace(100, 120, 7)
-    target = xr.DataArray(
-        np.zeros((7, 7)),
-        coords={"latitude": target_lat, "longitude": target_lon},
-        dims=["latitude", "longitude"],
-    )
-    for method in ["nearest", "bilinear"]:
-        try:
-            remapped = sample_dataarray.monet.remap(target, method=method)
-            assert isinstance(remapped, xr.DataArray)
-            assert remapped.shape == (7, 7)
-            np.testing.assert_allclose(remapped.sum().item(), sample_dataarray.sum().item(), rtol=0.2, atol=1.0)
-        except Exception:
-            pass
-
-    # Test remap (nearest and bilinear)
-    for method in ["nearest", "bilinear"]:
-        try:
-            remapped = sample_dataarray.monet.remap(sample_dataarray, method=method)
-            assert isinstance(remapped, xr.DataArray)
-            assert remapped.shape == sample_dataarray.shape
-            # Allow some tolerance for remapping differences
-            np.testing.assert_allclose(
-                remapped.sum().item(),
-                sample_dataarray.sum().item(),
-                rtol=1e-2,
-                atol=1e-2,
-            )
-        except Exception:
-            pass
     # Plotting tests (should not error, but may skip if dependencies missing)
     try:
         ax = sample_dataarray.monet.quick_map()
@@ -522,3 +490,12 @@ def test_pandas_accessor_basic(sample_dataframe):
     df3 = df.copy()
     out = df3.monet.cftime_to_datetime64(col="time")
     assert pd.api.types.is_datetime64_any_dtype(out["time"])
+
+
+@pytest.mark.parametrize("method", ["nearest", "bilinear"])
+def test_dataarray_remap_identity(sample_dataarray, method):
+    pytest.importorskip("axis")
+    result = sample_dataarray.monet.remap(sample_dataarray, method=method)
+    assert isinstance(result, xr.DataArray)
+    assert result.shape == sample_dataarray.shape
+    np.testing.assert_allclose(result.values, sample_dataarray.values, rtol=1e-7, atol=1e-7)

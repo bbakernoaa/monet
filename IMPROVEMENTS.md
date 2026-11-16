@@ -1,5 +1,42 @@
 # MONET — Areas of Improvement
 
+## Review status (2026-11-16)
+
+This review is based on the v3 dependency and correctness branch. The historical
+entries below retain their original wording and are not a validated work queue.
+Statuses reflect source inspection unless a test is named; performance claims
+remain unmeasured. Recheck against the branch under consideration before acting.
+
+| Entry | Status and evidence |
+|---|---|
+| 1.1 | Addressed in this branch: [vertical.py](monet/util/vertical.py) validates pressure; [test_vertical.py](tests/test_vertical.py) covers reversed and invalid columns. |
+| 1.2 | Unverified: the function uses `apply_ufunc(dask="parallelized")`; benchmark chunking and peak memory before changing it. |
+| 1.3 | Open: [met_funcs.py](monet/met_funcs.py) documents units; wrong-unit handling needs a deliberate API design. |
+| 1.4 | Unverified: compare [base.py](monet/accessors/base.py) and [conventions.py](monet/util/conventions.py) behavior before consolidating. |
+| 2.1 | Unverified performance: [base.py](monet/accessors/base.py) performs coordinate lookup; measure and consider cache invalidation. |
+| 2.2 | Unverified: test lazy indexing and memory in [plots.py](monet/plots/plots.py). |
+| 2.3 | Unverified performance: [cartopy_utils.py](monet/plots/cartopy_utils.py) contains the function; measure representative panels. |
+| 2.4 | Unverified performance: profile [met_funcs.py](monet/met_funcs.py) before hoisting closures. |
+| 2.5 | Unverified: check mutation in [pandas_accessor.py](monet/accessors/pandas_accessor.py) with a regression test. |
+| 3.1 | Open but stale backend name: both accessors still raise for AXIS; see [dataarray_accessor.py](monet/accessors/dataarray_accessor.py) and [dataset_accessor.py](monet/accessors/dataset_accessor.py). |
+| 3.2 | Stale: [resample.py](monet/util/resample.py) uses AXIS, not xregrid. Assess its current installation error separately. |
+| 3.3 | Unverified: benchmark resolution choices in [mapgen.py](monet/plots/mapgen.py) and preserve explicit user choice. |
+| 3.4 | Unverified: inspect actual errors and supported column names in [pandas_accessor.py](monet/accessors/pandas_accessor.py). |
+| 3.5 | Stale: [stats.py](monet/util/stats.py) builds `__all__` instead of a star import; inspect API compatibility before changes. |
+| 3.6 | Open design question: standardizing names in [met_funcs.py](monet/met_funcs.py) could break keyword callers. |
+| 3.7 | Open design question: changes to [cartopy_utils.py](monet/plots/cartopy_utils.py) require an API compatibility plan. |
+| 4.1 | Stale description: [remap.py](monet/util/remap.py) is an intentional compatibility stub; removal needs a deprecation decision. |
+| 4.2 | Unverified: inventory optional dependency guards and errors before standardizing. |
+| 4.3 | Open: [monet_accessor.py](monet/monet_accessor.py) is a compatibility layer; any removal needs a migration policy. |
+| 4.4 | Open: [conventions.py](monet/util/conventions.py) uses dimension-name heuristics; evaluate CF classification with non-CF fixtures. |
+
+The historical testing gaps in section 5 correspond to entries 1.1, 1.3,
+2.5, 3.1 and 3.2 above; recheck their tests before considering them resolved.
+The historical quick wins in section 6 correspond to 2.1, 3.4, 3.2, 2.4 and
+4.1. They are not established performance wins.
+
+## Historical report
+
 This report identifies opportunities to improve algorithmic efficiency, runtime performance, and user experience across the codebase. Items are grouped by category and ordered roughly by impact.
 
 ---

@@ -16,7 +16,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Ruff
-        run: pip install ruff
+        # Keep CI aligned with pre-commit; update using pre-commit autoupdate.
+        run: |
+          ruff_rev=$(awk '/ruff-pre-commit/ {
+            getline; gsub(/["v]/, "", $2); print $2
+          }' .pre-commit-config.yaml)
+          test -n "$ruff_rev"
+          pip install "ruff==$ruff_rev"
 
       - name: Check Formatting (Black style)
         run: ruff format --check .

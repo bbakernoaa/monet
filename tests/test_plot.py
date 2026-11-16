@@ -19,7 +19,13 @@ import monet  # noqa: F401
 from monet.plots import plots as p
 from monet.plots.mapgen import draw_map
 
-da = xr.tutorial.load_dataset("air_temperature").air.isel(time=1)
+# A small deterministic field keeps collection and plotting tests offline.
+da = xr.DataArray(
+    270.0 + np.arange(120, dtype=float).reshape(10, 12) / 10.0,
+    dims=("lat", "lon"),
+    coords={"lat": np.linspace(30.0, 60.0, 10), "lon": np.linspace(-125.0, -65.0, 12)},
+    name="air",
+)
 lons, lats = np.meshgrid(da.lon, da.lat)
 df = pd.DataFrame(
     {
