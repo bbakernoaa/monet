@@ -3,7 +3,10 @@ import sys
 from unittest.mock import MagicMock
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pytest
+import xarray as xr
 
 
 def mock_if_missing(module_names):
@@ -28,6 +31,33 @@ def close_all_figures():
     """Ensure all matplotlib figures are closed after each test."""
     yield
     plt.close("all")
+
+
+@pytest.fixture
+def sample_map_data():
+    """Small deterministic field for offline map and grid tests."""
+    return xr.DataArray(
+        270.0 + np.arange(120, dtype=float).reshape(10, 12) / 10.0,
+        dims=("lat", "lon"),
+        coords={"lat": np.linspace(30.0, 60.0, 10), "lon": np.linspace(-125.0, -65.0, 12)},
+        name="air",
+    )
+
+
+@pytest.fixture
+def sample_map_frame(sample_map_data):
+    """Paired observations on the sample field's grid."""
+    lon, lat = np.meshgrid(sample_map_data.lon, sample_map_data.lat)
+    values = sample_map_data.values.ravel()
+    return pd.DataFrame(
+        {
+            "latitude": lat.ravel(),
+            "longitude": lon.ravel(),
+            "CMAQ": values * 0.9,
+            "Obs": values * 1.1,
+            "datetime": pd.Timestamp("2013-01-01 01:00:00"),
+        }
+    )
 
 
 # Only mock truly optional dependencies.

@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import pytest
-import xarray as xr
 from packaging.version import Version
 
 try:
@@ -12,41 +11,20 @@ try:
 except ImportError:
     CARTOPY_AVAILABLE = False
 
-import numpy as np
-import pandas as pd
-
 import monet  # noqa: F401
 from monet.plots import plots as p
 from monet.plots.mapgen import draw_map
 
-# A small deterministic field keeps collection and plotting tests offline.
-da = xr.DataArray(
-    270.0 + np.arange(120, dtype=float).reshape(10, 12) / 10.0,
-    dims=("lat", "lon"),
-    coords={"lat": np.linspace(30.0, 60.0, 10), "lon": np.linspace(-125.0, -65.0, 12)},
-    name="air",
-)
-lons, lats = np.meshgrid(da.lon, da.lat)
-df = pd.DataFrame(
-    {
-        "latitude": lats.flatten(),
-        "longitude": lons.flatten(),
-        "CMAQ": da.values.flatten() * 0.9,
-        "Obs": da.values.flatten() * 1.1,
-        "datetime": pd.to_datetime("2013-01-01 01:00:00"),
-    }
-)
-
 
 @pytest.mark.parametrize("which", ["imshow", "map", "contourf"])
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_quick_with_cartopy_ax(which):
+def test_quick_with_cartopy_ax(which, sample_map_data):
     if not CARTOPY_AVAILABLE:
         pytest.skip("Cartopy is not installed")
 
     proj = tran = ccrs.PlateCarree()
     _fig, ax = plt.subplots(subplot_kw=dict(projection=proj))
-    getattr(da.monet, f"quick_{which}")(ax=ax, transform=tran)
+    getattr(sample_map_data.monet, f"quick_{which}")(ax=ax, transform=tran)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
@@ -55,16 +33,16 @@ def test_draw_map_counties():
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_spatial_plot():
-    fig, ax = p.spatial_plot(da)
+def test_spatial_plot(sample_map_data):
+    fig, ax = p.spatial_plot(sample_map_data)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_spatial_bias_scatter():
+def test_spatial_bias_scatter(sample_map_frame):
     # Convert DataFrame to an xarray Dataset and rename columns for the new API
-    ds = df.rename(columns={"CMAQ": "model", "Obs": "obs"}).to_xarray()
+    ds = sample_map_frame.rename(columns={"CMAQ": "model", "Obs": "obs"}).to_xarray()
     ds = ds.set_coords(["latitude", "longitude"])
     fig, ax = p.spatial_bias_scatter(ds)
     assert isinstance(fig, plt.Figure)
@@ -72,42 +50,30 @@ def test_spatial_bias_scatter():
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_spatial_imshow():
-    fig, ax = p.spatial_imshow(da)
+def test_spatial_imshow(sample_map_data):
+    fig, ax = p.spatial_imshow(sample_map_data)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_spatial_contourf():
-    fig, ax = p.spatial_contourf(da, cmap="viridis", levels=5)
+def test_spatial_contourf(sample_map_data):
+    fig, ax = p.spatial_contourf(sample_map_data, cmap="viridis", levels=5)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_wind_quiver():
-    u, v = da, da
+def test_wind_quiver(sample_map_data):
+    u, v = sample_map_data, sample_map_data
     fig, ax = p.wind_quiver(u, v)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
 
 
 @pytest.mark.skipif(not CARTOPY_AVAILABLE, reason="Cartopy is not installed")
-def test_wind_barbs():
-    u, v = da, da
+def test_wind_barbs(sample_map_data):
+    u, v = sample_map_data, sample_map_data
     fig, ax = p.wind_barbs(u, v)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
-
-
-if __name__ == "__main__":
-    test_quick_with_cartopy_ax("map")
-    test_draw_map_counties()
-    test_spatial_plot()
-    test_spatial_bias_scatter()
-    test_spatial_imshow()
-    test_spatial_contourf()
-    test_wind_quiver()
-    test_wind_barbs()
-    plt.show()
