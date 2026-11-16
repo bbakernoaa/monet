@@ -39,7 +39,7 @@ fetch them when no installed packages are found. PROJ is optional for projected 
 No published AXIS wheel is assumed by this version of MONET. A pip install builds
 native code and does not require ESMF or a conda environment. Native NetCDF weight-file I/O is disabled by default in this AXIS build; enabling it requires a compatible NetCDF C library and AXIS build configuration. Dask distributed is installed for lazy AXIS operations.
 
-The AXIS pin tracks an unmerged pull request. Review compatibility and replace it with an upstream release after merge. Direct Git dependencies are pinned to immutable commits; update the pins in both `pyproject.toml` and `environment-dev.yml` together, then run the test matrix and clean installation checks. Transitive dependencies are not locked.
+The AXIS pin tracks an unmerged pull request. Review compatibility and replace it with an upstream release after merge. Core direct Git dependencies are pinned to immutable commits; the optional `monet[obs]` dependency is not pinned. Update the pins in both `pyproject.toml` and `environment-dev.yml` together, then run the test matrix and clean installation checks. Transitive dependencies are not locked.
 
 On macOS, match the compiler and OpenMP library to your Kokkos installation. For
 an Apple-Clang-built Homebrew Kokkos, install AXIS with Apple Clang and the same
