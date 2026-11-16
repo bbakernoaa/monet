@@ -76,37 +76,37 @@ def test_calc_fv3_height_eager_lazy():
 def test_height_default_surface_and_integer_pressure():
     from monet.util.constants import R_d, g
 
-    actual = calc_fv3_height(np.array([300., 300.]), np.array([500, 800, 1000]))
-    expected = (R_d * 300 / g) * np.log(np.array([2., 1.25, 1.]))
+    actual = calc_fv3_height(np.array([300.0, 300.0]), np.array([500, 800, 1000]))
+    expected = (R_d * 300 / g) * np.log(np.array([2.0, 1.25, 1.0]))
     np.testing.assert_allclose(actual, expected)
 
 
 def test_height_rejects_invalid_column_when_computed():
     import pytest
 
-    temp = xr.DataArray([[300., 300.], [300., 300.]], dims=('column', 'z'))
-    pressure = xr.DataArray([[500., 800., 1000.], [500., 400., 1000.]], dims=('column', 'z'))
+    temp = xr.DataArray([[300.0, 300.0], [300.0, 300.0]], dims=("column", "z"))
+    pressure = xr.DataArray([[500.0, 800.0, 1000.0], [500.0, 400.0, 1000.0]], dims=("column", "z"))
     for lazy in (False, True):
-        p = pressure.chunk({'column': 1}) if lazy else pressure
-        with pytest.raises(ValueError, match='pressure'):
+        p = pressure.chunk({"column": 1}) if lazy else pressure
+        with pytest.raises(ValueError, match="pressure"):
             calc_fv3_height(temp, p).compute()
 
 
 def test_height_fractional_surface_with_integer_pressure():
     from monet.util.constants import R_d, g
 
-    actual = calc_fv3_height(np.array([300., 300.]), np.array([500, 800, 1000]), 0.25)
-    expected = 0.25 + (R_d * 300 / g) * np.log(np.array([2., 1.25, 1.]))
+    actual = calc_fv3_height(np.array([300.0, 300.0]), np.array([500, 800, 1000]), 0.25)
+    expected = 0.25 + (R_d * 300 / g) * np.log(np.array([2.0, 1.25, 1.0]))
     np.testing.assert_allclose(actual, expected)
 
 
 def test_height_rejects_nonpositive_and_reversed_pressure():
     import pytest
 
-    for pressure in ([0., 800., 1000.], [1000., 800., 500.]):
+    for pressure in ([0.0, 800.0, 1000.0], [1000.0, 800.0, 500.0]):
         for lazy in (False, True):
-            p = xr.DataArray(pressure, dims='z')
+            p = xr.DataArray(pressure, dims="z")
             if lazy:
                 p = p.chunk()
-            with pytest.raises(ValueError, match='pressure'):
-                calc_fv3_height(np.array([300., 300.]), p).compute()
+            with pytest.raises(ValueError, match="pressure"):
+                calc_fv3_height(np.array([300.0, 300.0]), p).compute()
